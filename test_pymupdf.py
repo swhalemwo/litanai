@@ -1,28 +1,21 @@
+import os
 import pymupdf
-
 from openparse import processing, DocumentParser
-
 from pipe import select, take
 from itertools import count
-
 from openai import OpenAI
-
 import subprocess
+import bibtexparser
+import pandas as pd
+import numpy as np
+import clickhouse_connect
+import pdb
 
 def get_secret(secret):
     return(
         subprocess.run("pass show " + secret, shell = True,
                        stdout=subprocess.PIPE, text = True).stdout.strip())
 
-
-import bibtexparser
-
-import pandas as pd
-import numpy as np
-
-import clickhouse_connect
-
-import pdb
 
 # ** parsing bibtex
 
