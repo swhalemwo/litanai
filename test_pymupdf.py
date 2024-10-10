@@ -47,17 +47,46 @@ def gd_bibtex() :
 
     return(df_bib)
 
-df_bib = gd_bibtex()
-df_bib.columns
+def parse_pdf_pymupdf (docpath):
+    "parse pdf text with pymupdf"
+
+    doc = pymupdf.open(DIR_LIT + docpath)
+
+    l_pages = []
+
+    for page in doc:
+        text = page.get_text()
+        l_pages.append(text)
+
+        # len(l_pages)
+
+    doc_txt = "\n".join(l_pages)
+
+    return(doc_txt)
+
+
+def parse_pdf_openparse (docpath):
+    "parse text of a pdf with openparse"
+    parser = DocumentParser()
+        
+    parsed_basic_doc = parser.parse(DIR_LIT + docpath)
+
+    l_nodes_text = []
+
+    for node in parsed_basic_doc.nodes:
+        l_nodes_text.append(node.text)
+
+        doc_txt = "\n".join(l_nodes_text)
+
+    return(doc_txt)
+
+
 
 
 client = clickhouse_connect.get_client(database = "litanai")
 
 # client.command("CREATE DATABASE litanai")
 # client.command("SHOW DATABASES")
-
-
-
 
 
 # if __name__ == "__main__":
@@ -68,20 +97,45 @@ DIR_PROJ = "/home/johannes/Dropbox/proj/litanai/"
 DIR_LIT = "/home/johannes/Dropbox/readings/"
 test_doc = DIR_LIT + "Fasche_2013_history.pdf"
 
+list_pdfs = [f for f in os.listdir(DIR_LIT) if f[-4:] == ".pdf"]
+
+l_txt_pymupdf = list(map(parse_pdf_pymupdf, list_pdfs))
+# l_txt_openparse = list(map(parse_pdf_openparse, list_pdfs[0:10])) # use pymupdf, so much faster
+
+df_text = pd.DataFrame({'key': list_pdfs,
+                       'text': l_txt_pymupdf})
+
+client.command("SET allow_experimental_inverted_index = true;")
+
+client.command("drop table littext")
+
+cmd_create_text_tbl = """CREATE TABLE littext (
+`key` String,
+`text` String,
+INDEX inv_idx(text) TYPE inverted(0) GRANULARITY 1
+)
+ENGINE = MergeTree()
+ORDER BY key"""
+
+client.command(cmd_create_text_tbl)
+
+client.insert_df('littext', df_text)
+
+cmd_query = "".join(["select key, length(text) AS len, ", 
+                     "(length(text) - length(replace(text, 'private museum', ''))) /",
+                     "length('private museum') AS n_occur ", 
+                     " from littext where text LIKE '%private museum%'",
+                     " order by n_occur DESC"])
+
+dtx = client.query_df(cmd_query)
+
+dtx[dtx['n_occur'] > 10.0]
+
+client.query_df("select key from littext where text LIKE '%private museum%'")
+      
 
 
-# pymupdf
-doc = pymupdf.open(test_doc)
-
-l_pages = []
-
-for page in doc:
-    text = page.get_text()
-    l_pages.append(text)
-
-len(l_pages)
-
-doc_txt = "\n".join(l_pages)
+# parse_pdf_openparse(list_pdfs[1])
 
 with open(DIR_PROJ + "fasche_mupdf.txt", "w") as file:
     # Write text to the file
@@ -93,13 +147,8 @@ with open(DIR_PROJ + "fasche_mupdf.txt", "w") as file:
 
 
 
-parser = DocumentParser()
-parsed_basic_doc = parser.parse(test_doc)
 
-l_nodes_text = []
 
-for node in parsed_basic_doc.nodes:
-    l_nodes_text.append(node.text)
         
 with open(DIR_PROJ + "fasche_openparse.txt", "w") as file:
     file.write("\n".join(l_nodes_text))
@@ -147,6 +196,11 @@ print(querry_res.to_dict()['choices'][0]['message']['content'])
 
 
 # * bibtex clickhouse test, but getting mauled by schema requirements
+
+df_bib = gd_bibtex()
+df_bib.columns
+
+
 cmd_create_tbl = """create table lit (
 `key` String,
 `author` String,
