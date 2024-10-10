@@ -2,7 +2,6 @@ import pymupdf
 
 from openparse import processing, DocumentParser
 
-
 from pipe import select, take
 from itertools import count
 
@@ -18,17 +17,60 @@ def get_secret(secret):
 
 import bibtexparser
 
-FILE_BIB1 = "/
+import pandas as pd
+import numpy as np
+
+import clickhouse_connect
+
+import pdb
+
+# ** parsing bibtex
+
+def gd_bibtex() :
+
+    "basic reading of bibtex files into pandas df"
+
+    FILE_BIB1 = "/home/johannes/Dropbox/sync/dabate/references.bib"
+    FILE_BIB2 = "/home/johannes/Dropbox/sync/dabate/references2.bib"
+
+    bibtex_db1 = bibtexparser.parse_file(FILE_BIB1)
+    bibtex_db2 = bibtexparser.parse_file(FILE_BIB2)
+
+    bibtex_db = bibtex_db1.entries + bibtex_db2.entries
+
+    data = []
+
+    # pdb.set_trace()
+
+    for entry in bibtex_db:
+        author = entry.get("author").value if "author" in entry.fields_dict.keys() else "N/A"
+        title = entry.get("title").value if "title" in entry.fields_dict.keys() else "N/A"
+        year = entry.get("year").value if "year" in entry.fields_dict.keys() else "N/A"
+        doi = entry.get("doi").value if "doi" in entry.fields_dict.keys() else "N/A"
+        data.append({'key': entry.key, 'author': author, 'title': title, 'year':year, 'doi' : doi})
+
+    df_bib = pd.DataFrame(data).replace('N/A', np.nan)
+    
+
+    return(df_bib)
+
+df_bib = gd_bibtex()
+df_bib.columns
 
 
-bib_database = with open(
+client = clickhouse_connect.get_client(database = "litanai")
+
+# client.command("CREATE DATABASE litanai")
+# client.command("SHOW DATABASES")
+
+
 
 
 
 # if __name__ == "__main__":
 
 DIR_PROJ = "/home/johannes/Dropbox/proj/litanai/"
-    
+
 
 DIR_LIT = "/home/johannes/Dropbox/readings/"
 test_doc = DIR_LIT + "Fasche_2013_history.pdf"
@@ -111,3 +153,18 @@ print(querry_res.to_dict()['choices'][0]['message']['content'])
 
 
 
+# * bibtex clickhouse test, but getting mauled by schema requirements
+cmd_create_tbl = """create table lit (
+`key` String,
+`author` String,
+`title` String,
+`year` UInt32,
+doi String
+)
+ENGINE = MergeTree()
+ORDER BY key
+"""
+
+client.command(cmd_create_tbl)
+
+client.insert_df("lit", df_bib)
