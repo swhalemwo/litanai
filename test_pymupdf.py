@@ -10,6 +10,10 @@ import pandas as pd
 import numpy as np
 import clickhouse_connect
 import pdb
+import polars as pl
+import pyarrow
+import json
+
 
 def get_secret(secret):
     return(
@@ -81,9 +85,44 @@ def parse_pdf_openparse (docpath):
     return(doc_txt)
 
 
+def gen_initial_db (client) :
+    "put existing lit into CH"
+
+    
+
+    DIR_LIT = "/home/johannes/Dropbox/readings/"
 
 
-client = clickhouse_connect.get_client(database = "litanai")
+    # test_doc = DIR_LIT + "Fasche_2013_history.pdf"
+
+    list_pdfs = [f for f in os.listdir(DIR_LIT) if f[-4:] == ".pdf"]
+
+    l_txt_pymupdf = list(map(parse_pdf_pymupdf, list_pdfs))
+    # l_txt_openparse = list(map(parse_pdf_openparse, list_pdfs[0:10])) # use pymupdf, so much faster
+
+    df_text = pd.DataFrame({'key': list_pdfs,
+                            'text': l_txt_pymupdf})
+
+    client.command("SET allow_experimental_inverted_index = true;")
+
+    client.command("drop table littext")
+
+    cmd_create_text_tbl = """CREATE TABLE littext (
+    `key` String,
+    `text` String,
+    INDEX inv_idx(text) TYPE inverted(0) GRANULARITY 1
+    )
+    ENGINE = MergeTree()
+    ORDER BY key"""
+
+    client.command(cmd_create_text_tbl)
+
+    client.insert_df('littext', df_text)
+
+
+
+
+
 
 # client.command("CREATE DATABASE litanai")
 # client.command("SHOW DATABASES")
@@ -91,127 +130,77 @@ client = clickhouse_connect.get_client(database = "litanai")
 
 # if __name__ == "__main__":
 
-DIR_PROJ = "/home/johannes/Dropbox/proj/litanai/"
+def gd_reltexts (query_reltext):
+    "get a df of the relevant texts"
+    
+    client = clickhouse_connect.get_client(database = "litanai")
+    
+    dtx = client.query_df(query_reltext)
+    
+    return(dtx)
 
 
-DIR_LIT = "/home/johannes/Dropbox/readings/"
-test_doc = DIR_LIT + "Fasche_2013_history.pdf"
 
-list_pdfs = [f for f in os.listdir(DIR_LIT) if f[-4:] == ".pdf"]
+def qry_oai (prompt, text):
+    
+    # query testing
+    oai_client = OpenAI(api_key = get_secret("openai-key"))
+    
+      
+    # pdb.set_trace()
+        
+    query = prompt + text
+        
+    query_res = oai_client.chat.completions.create(
+        messages = [{
+            "role": "user",
+            "content": query
+            # "content": "what is the capital of Belgium?"
+            }],
+        # model = "gpt-3.5-turbo",
+        model = "gpt-4o-mini")
+    
+    res_dict = query_res.to_dict()['choices'][0]['message']['content']
 
-l_txt_pymupdf = list(map(parse_pdf_pymupdf, list_pdfs))
-# l_txt_openparse = list(map(parse_pdf_openparse, list_pdfs[0:10])) # use pymupdf, so much faster
+    res_json = json.loads(res_dict.replace("```json\n", '').replace("\n```", ''))
+    
+    dt_res = pd.DataFrame(res_json)
 
-df_text = pd.DataFrame({'key': list_pdfs,
-                       'text': l_txt_pymupdf})
+    return(dt_res)
 
-client.command("SET allow_experimental_inverted_index = true;")
 
-client.command("drop table littext")
+# * main
 
-cmd_create_text_tbl = """CREATE TABLE littext (
-`key` String,
-`text` String,
-INDEX inv_idx(text) TYPE inverted(0) GRANULARITY 1
-)
-ENGINE = MergeTree()
-ORDER BY key"""
 
-client.command(cmd_create_text_tbl)
 
-client.insert_df('littext', df_text)
-
-cmd_query = "".join(["select key, length(text) AS len, ", 
+query_reltext = "".join(["select key, length(text) AS len, ", 
                      "(length(text) - length(replace(text, 'private museum', ''))) /",
-                     "length('private museum') AS n_occur ", 
+                     "length('private museum') AS n_occur, text ", 
                      " from littext where text LIKE '%private museum%'",
+                     " AND n_occur > 10",
                      " order by n_occur DESC"])
 
-dtx = client.query_df(cmd_query)
+dt_reltexts = gd_reltexts(query_reltext)
 
-dtx[dtx['n_occur'] > 10.0]
-
-client.query_df("select key from littext where text LIKE '%private museum%'")
-      
-
-
-# parse_pdf_openparse(list_pdfs[1])
-
-with open(DIR_PROJ + "fasche_mupdf.txt", "w") as file:
-    # Write text to the file
-    file.write(doc_txt)
-
-
-
-# openparse
-
-
-
-
-
-        
-with open(DIR_PROJ + "fasche_openparse.txt", "w") as file:
-    file.write("\n".join(l_nodes_text))
-
-
-
-# display doesn't work in emacs
-# pdf = openparse.Pdf(test_doc)
-
-# pdf.display_with_bboxes(
-#     parsed_basic_doc.nodes,
-# )
-
-
-
-# query testing
-client = OpenAI(api_key = get_secret("openai-key"))
 
 prompt = """you will read a long text. the text is in some way about private art museums, a new form of museums started by wealthy collectors. you have to find every instance in this text about how private art museums have an effect on the arts, for example that the artists after being exhibted experience a boost to their career, increase their chances of canonization or consecration, are more likely to be raise higher prices at auctions or are more likely to be exhibited by other museums or institutions. Any impact that private museums leave in the field of artistic production.
 
-list every instance that you find literally word for word, don't rephrase anything. include all the text of each instance that is necessary for it to be understood when standing on its own. Do not use ellipses, include each instance from start to finish, even if inbetween there are elements that may seem less relevant. Rather include too much text than too little, it is important that the point of each instance is clearly understandable
+quote every instance that you find literally word for word, don't rephrase anything. include all the text of each instance that is necessary for it to be understood when standing on its own. Do not use ellipses, include each instance from start to finish, even if inbetween there are elements that may seem less relevant. If there is some context surrounding the quote which is necessary to understand it, include it in the quote. Rather include too much text than too little, it is important that the point of each instance is clearly understandable, and that a quote convey its message on its own. 
 
-if this text does not concern canonization, consecration or artist careers, just say so shortly
+Return the results as a list of dicts (, with each dict having the keys pagenumber, quote, and reason why this instance is relevant. if this text does not concern canonization/artist careers, return an empty list.
 
 The next follows below this line:
-
 """
 
-query = prompt + doc_txt
-
-
-querry_res = client.chat.completions.create(
-    messages = [
-        {
-            "role": "user",
-            "content": query,
-            }
-        ],
-    # model = "gpt-3.5-turbo",
-    model = "gpt-4o-mini")
-
-
-print(querry_res.to_dict()['choices'][0]['message']['content'])
 
 
 
-# * bibtex clickhouse test, but getting mauled by schema requirements
-
-df_bib = gd_bibtex()
-df_bib.columns
+jj = qry_oai(prompt, dt_reltexts.iloc[0]['text'])
 
 
-cmd_create_tbl = """create table lit (
-`key` String,
-`author` String,
-`title` String,
-`year` UInt32,
-doi String
-)
-ENGINE = MergeTree()
-ORDER BY key
-"""
 
-client.command(cmd_create_tbl)
+kk = json.loads(jj.replace("```json\n", '').replace("\n```", ''))
 
-client.insert_df("lit", df_bib)
+list(pd.DataFrame(kk)['quote'])
+
+
