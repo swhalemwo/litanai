@@ -13,12 +13,13 @@ import pdb
 import polars as pl
 import pyarrow
 import json
-
+import tiktoken
 
 def get_secret(secret):
     return(
         subprocess.run("pass show " + secret, shell = True,
                        stdout=subprocess.PIPE, text = True).stdout.strip())
+
 
 
 # ** parsing bibtex
@@ -72,7 +73,7 @@ def parse_pdf_pymupdf (docpath):
 def parse_pdf_openparse (docpath):
     "parse text of a pdf with openparse"
     parser = DocumentParser()
-        
+    
     parsed_basic_doc = parser.parse(DIR_LIT + docpath)
 
     l_nodes_text = []
@@ -134,14 +135,19 @@ def gd_reltexts (query_reltext):
     "get a df of the relevant texts"
     
     client = clickhouse_connect.get_client(database = "litanai")
-    
+
     dtx = client.query_df(query_reltext)
+
+    # add count of tokens: shouldn't be longer than 128k (gpt-4o-mini limit)
+    encoder = tiktoken.get_encoding("o200k_base")
+    dtx.insert(3, 'tokens', dtx.apply(lambda r: len(encoder.encode(r['text'])), axis = 1))
+
     
     return(dtx)
 
 
 
-def qry_oai (prompt, text):
+def qry_oai (key, prompt, text_to_query):
     
     # query testing
     oai_client = OpenAI(api_key = get_secret("openai-key"))
@@ -149,8 +155,11 @@ def qry_oai (prompt, text):
       
     # pdb.set_trace()
         
-    query = prompt + text
-        
+    query = prompt + text_to_query
+    
+    
+
+    oai_client = OpenAI(api_key = get_secret("openai-key"))
     query_res = oai_client.chat.completions.create(
         messages = [{
             "role": "user",
@@ -158,13 +167,20 @@ def qry_oai (prompt, text):
             # "content": "what is the capital of Belgium?"
             }],
         # model = "gpt-3.5-turbo",
-        model = "gpt-4o-mini")
+        model = "gpt-4o-mini",
+        response_format = {"type" : "json_object"}
+        )
     
     res_dict = query_res.to_dict()['choices'][0]['message']['content']
 
-    res_json = json.loads(res_dict.replace("```json\n", '').replace("\n```", ''))
-    
+    try:
+        res_json = json.loads(res_dict)['results']
+
+    except:
+        pdb.set_trace()
+        
     dt_res = pd.DataFrame(res_json)
+    dt_res.insert(0, "key", key)
 
     return(dt_res)
 
@@ -180,27 +196,41 @@ query_reltext = "".join(["select key, length(text) AS len, ",
                      " AND n_occur > 10",
                      " order by n_occur DESC"])
 
+
 dt_reltexts = gd_reltexts(query_reltext)
+pl.DataFrame(dt_reltexts)
 
 
-prompt = """you will read a long text. the text is in some way about private art museums, a new form of museums started by wealthy collectors. you have to find every instance in this text about how private art museums have an effect on the arts, for example that the artists after being exhibted experience a boost to their career, increase their chances of canonization or consecration, are more likely to be raise higher prices at auctions or are more likely to be exhibited by other museums or institutions. Any impact that private museums leave in the field of artistic production.
+dt_reltexts[dt_reltexts['tokens'] < 100000]
+
+prompt = """you will read a long text. the text is in some way about private art museums, a new form of museums started by wealthy collectors. you have to find every instance in this text about how private art museums have (or have not) an effect on the arts, for example that the artists after being exhibted experience a boost to their career, increase their chances of canonization or consecration, are more likely to be raise higher prices at auctions or are more likely to be exhibited by other museums or institutions. Any impact that private museums leave in the field of artistic production.
 
 quote every instance that you find literally word for word, don't rephrase anything. include all the text of each instance that is necessary for it to be understood when standing on its own. Do not use ellipses, include each instance from start to finish, even if inbetween there are elements that may seem less relevant. If there is some context surrounding the quote which is necessary to understand it, include it in the quote. Rather include too much text than too little, it is important that the point of each instance is clearly understandable, and that a quote convey its message on its own. 
 
-Return the results as a list of dicts (, with each dict having the keys pagenumber, quote, and reason why this instance is relevant. if this text does not concern canonization/artist careers, return an empty list.
+Return the results as a list of dicts so it can be parsed as json, with each dict having the keys pagenumber, quote, and reason why this instance is relevant. if this text does not concern canonization/artist careers, return an empty list.
 
 The next follows below this line:
 """
 
 
+# single query
+jj = qry_oai("Brown_2019_private.pdf", prompt, dt_reltexts.iloc[0]['text'])
 
 
-jj = qry_oai(prompt, dt_reltexts.iloc[0]['text'])
+l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000]
+         .apply(lambda row: qry_oai(row['key'], prompt, row['text']), axis = 1))
 
 
 
-kk = json.loads(jj.replace("```json\n", '').replace("\n```", ''))
 
-list(pd.DataFrame(kk)['quote'])
+l_res = dt_reltexts.head().apply(lambda row: qry_oai(row['key'], prompt, row['text']), axis = 1)
+
+l_res_cbnd = [res for res in l_res if not res.empty]
+
+dt_res_cbnd = pd.concat(l_res_cbnd)
+
+PROJ_DIR = "/home/johannes/Dropbox/proj/litanai/"
+
+dt_res_cbnd.to_csv(PROJ_DIR + "res.csv")
 
 
