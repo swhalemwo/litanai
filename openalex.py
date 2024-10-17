@@ -48,12 +48,20 @@ def pickle_journal (l_papers, journal_id, DIR_JOURNAL_PICKLES):
         pickle.dump(l_papers, file)
 
 
+def pickle_load_journal (journal_id, DIR_JOURNAL_PICKLES):
+
+    with open(os.path.join(DIR_JOURNAL_PICKLES, journal_id), 'r') as file:
+        pickle.load(file)
+
+
+
+
 def ingest_csv(DIR_CSV) :
     "ingest the flattened files into clickhouse"
     ch_client = clickhouse_connect.get_client(database = "litanai")
 
     cmd_ingest_works = gc_ingest_cmd("works", DIR_CSV)
-    ch_client.command(cmd_ingest_works)
+    # ch_client.command(cmd_ingest_works)
 
     subprocess.run(cmd_ingest_works, shell = True, stdout=subprocess.PIPE, text = True)
     
@@ -63,7 +71,7 @@ def ingest_csv(DIR_CSV) :
 
 
     # if False:
-    #     [os.remove(DIR_CSV + file) for file in os.listdir(DIR_CSV)]
+       # [os.remove(DIR_CSV + file) for file in os.listdir(DIR_CSV)]
 
 
 
@@ -72,16 +80,16 @@ def ingest_csv(DIR_CSV) :
 DIR_JOURNAL_PICKLES = "/run/media/johannes/data/litanai/journals/"
 
 
-
-
-
 l_papers_poetics = gl_journal_papers('https://openalex.org/S98355519')
 flatten_works(l_papers_poetics)
 
 
 
 l_papers_asr = gl_journal_papers('https://openalex.org/s157620343')
-flatten_works(l_papers_asr)
+
+l_papers_asr = pickle_load_journal('s157620343', DIR_JOURNAL_PICKLES)
+
+flatten_works(l_papers_asr[0:300])
 
 pickle_journal(l_papers_asr, "s157620343", DIR_JOURNAL_PICKLES)
 
