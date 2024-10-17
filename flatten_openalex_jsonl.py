@@ -792,9 +792,7 @@ def flatten_works(l_works):
 
             # best_oa_locations
             if best_oa_location := (work.get('best_oa_location') or {}):
-                if best_oa_location.get(
-                        'source') and best_oa_location.get(
-                            'source').get('id'):
+                if best_oa_location.get('source') and best_oa_location.get('source').get('id'):
                     best_oa_locations_writer.writerow({
                         'work_id': work_id,
                         'source_id': best_oa_location['source']['id'],
