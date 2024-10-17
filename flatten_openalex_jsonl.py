@@ -685,26 +685,26 @@ def flatten_works(l_works):
     # breakpoint()
 
     with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
-         gzip.open(file_spec['primary_locations']['name'], 'wt',
-                   encoding='utf-8') as primary_locations_csv, \
+         # gzip.open(file_spec['primary_locations']['name'], 'wt',
+         #           encoding='utf-8') as primary_locations_csv, \
             gzip.open(file_spec['locations']['name'], 'wt',
                       encoding='utf-8') as locations, \
             gzip.open(file_spec['best_oa_locations']['name'], 'wt',
                       encoding='utf-8') as best_oa_locations, \
             gzip.open(file_spec['authorships']['name'], 'wt',
                       encoding='utf-8') as authorships_csv, \
-            gzip.open(file_spec['biblio']['name'], 'wt',
-                      encoding='utf-8') as biblio_csv, \
+            # gzip.open(file_spec['biblio']['name'], 'wt',
+            #           encoding='utf-8') as biblio_csv, \
             gzip.open(file_spec['topics']['name'], 'wt',
                       encoding='utf-8') as topics_csv, \
             gzip.open(file_spec['concepts']['name'], 'wt',
                       encoding='utf-8') as concepts_csv, \
-            gzip.open(file_spec['ids']['name'], 'wt',
-                      encoding='utf-8') as ids_csv, \
+            # gzip.open(file_spec['ids']['name'], 'wt',
+            #           encoding='utf-8') as ids_csv, \
             gzip.open(file_spec['mesh']['name'], 'wt',
                       encoding='utf-8') as mesh_csv, \
-            gzip.open(file_spec['open_access']['name'], 'wt',
-                      encoding='utf-8') as open_access_csv, \
+            # gzip.open(file_spec['open_access']['name'], 'wt',
+            #           encoding='utf-8') as open_access_csv, \
             gzip.open(file_spec['referenced_works']['name'], 'wt',
                       encoding='utf-8') as referenced_works_csv, \
             gzip.open(file_spec['related_works']['name'], 'wt',
@@ -712,23 +712,23 @@ def flatten_works(l_works):
 
         works_writer = init_dict_writer(works_csv, file_spec['works'],
                                         extrasaction='ignore')
-        primary_locations_writer = init_dict_writer(primary_locations_csv,
-                                                    file_spec[
-                                                        'primary_locations'])
+        # primary_locations_writer = init_dict_writer(primary_locations_csv,
+        #                                             file_spec[
+        #                                                 'primary_locations'])
         locations_writer = init_dict_writer(locations, file_spec['locations'])
         best_oa_locations_writer = init_dict_writer(best_oa_locations,
                                                     file_spec[
                                                         'best_oa_locations'])
         authorships_writer = init_dict_writer(authorships_csv,
                                               file_spec['authorships'])
-        biblio_writer = init_dict_writer(biblio_csv, file_spec['biblio'])
+        # biblio_writer = init_dict_writer(biblio_csv, file_spec['biblio'])
         topics_writer = init_dict_writer(topics_csv, file_spec['topics'])
         concepts_writer = init_dict_writer(concepts_csv, file_spec['concepts'])
-        ids_writer = init_dict_writer(ids_csv, file_spec['ids'],
-                                      extrasaction='ignore')
+        # ids_writer = init_dict_writer(ids_csv, file_spec['ids'],
+        #                               extrasaction='ignore')
         mesh_writer = init_dict_writer(mesh_csv, file_spec['mesh'])
-        open_access_writer = init_dict_writer(open_access_csv,
-                                              file_spec['open_access'])
+        # open_access_writer = init_dict_writer(open_access_csv,
+        #                                       file_spec['open_access'])
         referenced_works_writer = init_dict_writer(referenced_works_csv,
                                                    file_spec[
                                                        'referenced_works'])
@@ -757,16 +757,11 @@ def flatten_works(l_works):
                     'abstract_inverted_index')) is not None:
                 work['abstract_text'] = invert_abstract(abstract_inv)
 
-                
-
-            works_writer.writerow(work)
-
             # primary_locations
             if primary_location := (work.get('primary_location') or {}):
-                if primary_location.get(
-                        'source') and primary_location.get(
-                            'source').get('id'):
-                    primary_locations_writer.writerow({
+                if primary_location.get('source') and primary_location.get('source').get('id'):
+                    dict_primloc = {
+                    # primary_locations_writer.writerow({
                         'work_id': work_id,
                         'source_id': primary_location['source']['id'],
                         'landing_page_url': primary_location.get(
@@ -775,7 +770,9 @@ def flatten_works(l_works):
                         'is_oa': primary_location.get('is_oa'),
                         'version': primary_location.get('version'),
                         'license': primary_location.get('license'),
-                    })
+                    }
+
+            works_writer.writerow(work)
 
             # locations
             if locations := work.get('locations'):
