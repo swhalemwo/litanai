@@ -5,17 +5,17 @@ import json
 import os
 
 SNAPSHOT_DIR = 'openalex-snapshot'
-CSV_DIR = 'csv-files'
+DIR_CSV = 'csv-files'
 
-if not os.path.exists(CSV_DIR):
-    os.mkdir(CSV_DIR)
+if not os.path.exists(DIR_CSV):
+    os.mkdir(DIR_CSV)
 
 FILES_PER_ENTITY = int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
 
 csv_files = {
     'authors': {
         'authors': {
-            'name': os.path.join(CSV_DIR, 'authors.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'authors.csv.gz'),
             'columns': [
                 'id', 'orcid', 'display_name', 'display_name_alternatives',
                 'works_count', 'cited_by_count',
@@ -23,14 +23,14 @@ csv_files = {
             ]
         },
         'ids': {
-            'name': os.path.join(CSV_DIR, 'authors_ids.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'authors_ids.csv.gz'),
             'columns': [
                 'author_id', 'openalex', 'orcid', 'scopus', 'twitter',
                 'wikipedia', 'mag'
             ]
         },
         'counts_by_year': {
-            'name': os.path.join(CSV_DIR, 'authors_counts_by_year.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'authors_counts_by_year.csv.gz'),
             'columns': [
                 'author_id', 'year', 'works_count', 'cited_by_count',
                 'oa_works_count'
@@ -39,7 +39,7 @@ csv_files = {
     },
     'concepts': {
         'concepts': {
-            'name': os.path.join(CSV_DIR, 'concepts.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'concepts.csv.gz'),
             'columns': [
                 'id', 'wikidata', 'display_name', 'level', 'description',
                 'works_count', 'cited_by_count', 'image_url',
@@ -47,27 +47,27 @@ csv_files = {
             ]
         },
         'ancestors': {
-            'name': os.path.join(CSV_DIR, 'concepts_ancestors.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'concepts_ancestors.csv.gz'),
             'columns': ['concept_id', 'ancestor_id']
         },
         'counts_by_year': {
-            'name': os.path.join(CSV_DIR, 'concepts_counts_by_year.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'concepts_counts_by_year.csv.gz'),
             'columns': ['concept_id', 'year', 'works_count', 'cited_by_count',
                         'oa_works_count']
         },
         'ids': {
-            'name': os.path.join(CSV_DIR, 'concepts_ids.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'concepts_ids.csv.gz'),
             'columns': ['concept_id', 'openalex', 'wikidata', 'wikipedia',
                         'umls_aui', 'umls_cui', 'mag']
         },
         'related_concepts': {
-            'name': os.path.join(CSV_DIR, 'concepts_related_concepts.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'concepts_related_concepts.csv.gz'),
             'columns': ['concept_id', 'related_concept_id', 'score']
         }
     },
     'topics': {
         'topics': {
-            'name': os.path.join(CSV_DIR, 'topics.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'topics.csv.gz'),
             'columns': ['id', 'display_name', 'subfield_id',
                         'subfield_display_name', 'field_id',
                         'field_display_name',
@@ -78,7 +78,7 @@ csv_files = {
     },
     'institutions': {
         'institutions': {
-            'name': os.path.join(CSV_DIR, 'institutions.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'institutions.csv.gz'),
             'columns': [
                 'id', 'ror', 'display_name', 'country_code', 'type',
                 'homepage_url', 'image_url', 'image_thumbnail_url',
@@ -88,14 +88,14 @@ csv_files = {
             ]
         },
         'ids': {
-            'name': os.path.join(CSV_DIR, 'institutions_ids.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'institutions_ids.csv.gz'),
             'columns': [
                 'institution_id', 'openalex', 'ror', 'grid', 'wikipedia',
                 'wikidata', 'mag'
             ]
         },
         'geo': {
-            'name': os.path.join(CSV_DIR, 'institutions_geo.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'institutions_geo.csv.gz'),
             'columns': [
                 'institution_id', 'city', 'geonames_city_id', 'region',
                 'country_code', 'country', 'latitude',
@@ -103,14 +103,14 @@ csv_files = {
             ]
         },
         'associated_institutions': {
-            'name': os.path.join(CSV_DIR,
+            'name': os.path.join(DIR_CSV,
                                  'institutions_associated_institutions.csv.gz'),
             'columns': [
                 'institution_id', 'associated_institution_id', 'relationship'
             ]
         },
         'counts_by_year': {
-            'name': os.path.join(CSV_DIR, 'institutions_counts_by_year.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'institutions_counts_by_year.csv.gz'),
             'columns': [
                 'institution_id', 'year', 'works_count', 'cited_by_count',
                 'oa_works_count'
@@ -119,7 +119,7 @@ csv_files = {
     },
     'publishers': {
         'publishers': {
-            'name': os.path.join(CSV_DIR, 'publishers.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'publishers.csv.gz'),
             'columns': [
                 'id', 'display_name', 'alternate_titles', 'country_codes',
                 'hierarchy_level', 'parent_publisher',
@@ -128,18 +128,18 @@ csv_files = {
             ]
         },
         'counts_by_year': {
-            'name': os.path.join(CSV_DIR, 'publishers_counts_by_year.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'publishers_counts_by_year.csv.gz'),
             'columns': ['publisher_id', 'year', 'works_count', 'cited_by_count',
                         'oa_works_count']
         },
         'ids': {
-            'name': os.path.join(CSV_DIR, 'publishers_ids.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'publishers_ids.csv.gz'),
             'columns': ['publisher_id', 'openalex', 'ror', 'wikidata']
         },
     },
     'sources': {
         'sources': {
-            'name': os.path.join(CSV_DIR, 'sources.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'sources.csv.gz'),
             'columns': [
                 'id', 'issn_l', 'issn', 'display_name', 'publisher',
                 'works_count', 'cited_by_count', 'is_oa',
@@ -147,102 +147,107 @@ csv_files = {
             ]
         },
         'ids': {
-            'name': os.path.join(CSV_DIR, 'sources_ids.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'sources_ids.csv.gz'),
             'columns': ['source_id', 'openalex', 'issn_l', 'issn', 'mag',
                         'wikidata', 'fatcat']
         },
         'counts_by_year': {
-            'name': os.path.join(CSV_DIR, 'sources_counts_by_year.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'sources_counts_by_year.csv.gz'),
             'columns': ['source_id', 'year', 'works_count', 'cited_by_count',
                         'oa_works_count']
         },
     },
     'works': {
         'works': {
-            'name': os.path.join(CSV_DIR, 'works.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works.csv.gz'),
             'columns': [
                 'id', 'doi', 'title', 'display_name', 'publication_year',
                 'publication_date', 'type', 'cited_by_count',
                 'is_retracted', 'is_paratext', 'cited_by_api_url',
                 # 'abstract_inverted_index',
                 'abstract_text',
-                'language'
+                'language',
+                'volume', 'issue', 'first_page', 'last_page', # biblio
+                'openalex', 'doi', 'mag', 'pmid', 'pmcid', # ids
+                'is_oa', 'oa_status', 'oa_url', 'any_repository_has_fulltext', # open access
+                'source_id', 'landing_page_url', 'pdf_url', 'is_oa', 'version', 'license' # prim locs
             ]
         },
-        'primary_locations': {
-            'name': os.path.join(CSV_DIR, 'works_primary_locations.csv.gz'),
-            'columns': [
-                'work_id', 'source_id', 'landing_page_url', 'pdf_url', 'is_oa',
-                'version', 'license'
-            ]
-        },
+        # 'primary_locations': {
+        #     'name': os.path.join(DIR_CSV, 'works_primary_locations.csv.gz'),
+        #     'columns': [
+        #         'work_id', 'source_id', 'landing_page_url', 'pdf_url', 'is_oa',
+        #         'version', 'license'
+        #     ]
+        # },
         'locations': {
-            'name': os.path.join(CSV_DIR, 'works_locations.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_locations.csv.gz'),
             'columns': [
                 'work_id', 'source_id', 'landing_page_url', 'pdf_url', 'is_oa',
                 'version', 'license'
             ]
         },
         'best_oa_locations': {
-            'name': os.path.join(CSV_DIR, 'works_best_oa_locations.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_best_oa_locations.csv.gz'),
             'columns': [
                 'work_id', 'source_id', 'landing_page_url', 'pdf_url', 'is_oa',
                 'version', 'license'
             ]
         },
         'authorships': {
-            'name': os.path.join(CSV_DIR, 'works_authorships.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_authorships.csv.gz'),
             'columns': [
                 'work_id', 'author_position', 'author_id', 'institution_id',
                 'raw_affiliation_string'
             ]
         },
-        'biblio': {
-            'name': os.path.join(CSV_DIR, 'works_biblio.csv.gz'),
-            'columns': [
-                'work_id', 'volume', 'issue', 'first_page', 'last_page'
-            ]
-        },
+        # 'biblio': {
+        #     'name': os.path.join(DIR_CSV, 'works_biblio.csv.gz'),
+        #     'columns': [
+        #         'work_id', 'volume', 'issue', 'first_page', 'last_page'
+        #     ]
+        # },
+        
         'topics': {
-            'name': os.path.join(CSV_DIR, 'works_topics.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_topics.csv.gz'),
             'columns': [
                 'work_id', 'topic_id', 'score'
             ]
         },
         'concepts': {
-            'name': os.path.join(CSV_DIR, 'works_concepts.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_concepts.csv.gz'),
             'columns': [
                 'work_id', 'concept_id', 'score'
             ]
         },
-        'ids': {
-            'name': os.path.join(CSV_DIR, 'works_ids.csv.gz'),
-            'columns': [
-                'work_id', 'openalex', 'doi', 'mag', 'pmid', 'pmcid'
-            ]
-        },
+        # 'ids': {
+        #     'name': os.path.join(DIR_CSV, 'works_ids.csv.gz'),
+        #     'columns': [
+        #         'work_id', 'openalex', 'doi', 'mag', 'pmid', 'pmcid'
+        #     ]
+        # },
         'mesh': {
-            'name': os.path.join(CSV_DIR, 'works_mesh.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_mesh.csv.gz'),
             'columns': [
                 'work_id', 'descriptor_ui', 'descriptor_name', 'qualifier_ui',
                 'qualifier_name', 'is_major_topic'
             ]
         },
-        'open_access': {
-            'name': os.path.join(CSV_DIR, 'works_open_access.csv.gz'),
-            'columns': [
-                'work_id', 'is_oa', 'oa_status', 'oa_url',
-                'any_repository_has_fulltext'
-            ]
-        },
+        # 'open_access': {
+        #     'name': os.path.join(DIR_CSV, 'works_open_access.csv.gz'),
+        #     'columns': [
+        #         'work_id', 'is_oa', 'oa_status', 'oa_url',
+        #         'any_repository_has_fulltext'
+        #     ]
+        # },
         'referenced_works': {
-            'name': os.path.join(CSV_DIR, 'works_referenced_works.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_referenced_works.csv.gz'),
             'columns': [
                 'work_id', 'referenced_work_id'
             ]
         },
         'related_works': {
-            'name': os.path.join(CSV_DIR, 'works_related_works.csv.gz'),
+            'name': os.path.join(DIR_CSV, 'works_related_works.csv.gz'),
             'columns': [
                 'work_id', 'related_work_id'
             ]
