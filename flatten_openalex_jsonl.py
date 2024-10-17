@@ -164,7 +164,9 @@ csv_files = {
                 'id', 'doi', 'title', 'display_name', 'publication_year',
                 'publication_date', 'type', 'cited_by_count',
                 'is_retracted', 'is_paratext', 'cited_by_api_url',
-                'abstract_inverted_index', 'language'
+                # 'abstract_inverted_index',
+                'abstract_text',
+                'language'
             ]
         },
         'primary_locations': {
@@ -672,13 +674,14 @@ def flatten_sources():
                 break
 
 
-def flatten_works():
+def flatten_works(l_works):
     file_spec = csv_files['works']
+    
+    # breakpoint()
 
-    with gzip.open(file_spec['works']['name'], 'wt',
-                   encoding='utf-8') as works_csv, \
-            gzip.open(file_spec['primary_locations']['name'], 'wt',
-                      encoding='utf-8') as primary_locations_csv, \
+    with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
+         gzip.open(file_spec['primary_locations']['name'], 'wt',
+                   encoding='utf-8') as primary_locations_csv, \
             gzip.open(file_spec['locations']['name'], 'wt',
                       encoding='utf-8') as locations, \
             gzip.open(file_spec['best_oa_locations']['name'], 'wt',
@@ -728,155 +731,160 @@ def flatten_works():
                                                 file_spec['related_works'])
 
         files_done = 0
-        for jsonl_file_name in glob.glob(
-                os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz')):
-            print(jsonl_file_name)
-            with gzip.open(jsonl_file_name, 'r') as works_jsonl:
-                for work_json in works_jsonl:
-                    if not work_json.strip():
-                        continue
+        # for jsonl_file_name in glob.glob(
+        #         os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz')):
+        #     print(jsonl_file_name)
+        #     with gzip.open(jsonl_file_name, 'r') as works_jsonl:
+        # for work_json in works_jsonl:
+        for work in l_works:
+            # if not work_json.strip():
+            #     continue
 
-                    work = json.loads(work_json)
+            # work = json.loads(work_json)
 
-                    if not (work_id := work.get('id')):
-                        continue
+            if not (work_id := work.get('id')):
+                continue
 
-                    # works
-                    if (abstract := work.get(
-                            'abstract_inverted_index')) is not None:
-                        work['abstract_inverted_index'] = json.dumps(abstract,
-                                                                     ensure_ascii=False)
+            # breakpoint()
 
-                    works_writer.writerow(work)
+            # works
+            if (abstract_inv := work.get(
+                    'abstract_inverted_index')) is not None:
+                work['abstract_text'] = invert_abstract(abstract_inv)
 
-                    # primary_locations
-                    if primary_location := (work.get('primary_location') or {}):
-                        if primary_location.get(
-                                'source') and primary_location.get(
-                                'source').get('id'):
-                            primary_locations_writer.writerow({
+                
+
+            works_writer.writerow(work)
+
+            # primary_locations
+            if primary_location := (work.get('primary_location') or {}):
+                if primary_location.get(
+                        'source') and primary_location.get(
+                            'source').get('id'):
+                    primary_locations_writer.writerow({
+                        'work_id': work_id,
+                        'source_id': primary_location['source']['id'],
+                        'landing_page_url': primary_location.get(
+                            'landing_page_url'),
+                        'pdf_url': primary_location.get('pdf_url'),
+                        'is_oa': primary_location.get('is_oa'),
+                        'version': primary_location.get('version'),
+                        'license': primary_location.get('license'),
+                    })
+
+            # locations
+            if locations := work.get('locations'):
+                for location in locations:
+                    if location.get('source') and location.get(
+                            'source').get('id'):
+                        locations_writer.writerow({
+                            'work_id': work_id,
+                            'source_id': location['source']['id'],
+                            'landing_page_url': location.get(
+                                'landing_page_url'),
+                            'pdf_url': location.get('pdf_url'),
+                            'is_oa': location.get('is_oa'),
+                            'version': location.get('version'),
+                            'license': location.get('license'),
+                        })
+
+            # best_oa_locations
+            if best_oa_location := (work.get('best_oa_location') or {}):
+                if best_oa_location.get(
+                        'source') and best_oa_location.get(
+                            'source').get('id'):
+                    best_oa_locations_writer.writerow({
+                        'work_id': work_id,
+                        'source_id': best_oa_location['source']['id'],
+                        'landing_page_url': best_oa_location.get(
+                            'landing_page_url'),
+                        'pdf_url': best_oa_location.get('pdf_url'),
+                        'is_oa': best_oa_location.get('is_oa'),
+                        'version': best_oa_location.get('version'),
+                        'license': best_oa_location.get('license'),
+                    })
+
+            # authorships
+            if authorships := work.get('authorships'):
+                for authorship in authorships:
+                    if author_id := authorship.get('author', {}).get(
+                            'id'):
+                        institutions = authorship.get('institutions')
+                        institution_ids = [i.get('id') for i in
+                                           institutions]
+                        institution_ids = [i for i in institution_ids if
+                                           i]
+                        institution_ids = institution_ids or [None]
+
+                        for institution_id in institution_ids:
+                            authorships_writer.writerow({
                                 'work_id': work_id,
-                                'source_id': primary_location['source']['id'],
-                                'landing_page_url': primary_location.get(
-                                    'landing_page_url'),
-                                'pdf_url': primary_location.get('pdf_url'),
-                                'is_oa': primary_location.get('is_oa'),
-                                'version': primary_location.get('version'),
-                                'license': primary_location.get('license'),
+                                'author_position': authorship.get(
+                                    'author_position'),
+                                'author_id': author_id,
+                                'institution_id': institution_id,
+                                'raw_affiliation_string': authorship.get(
+                                    'raw_affiliation_string'),
                             })
 
-                    # locations
-                    if locations := work.get('locations'):
-                        for location in locations:
-                            if location.get('source') and location.get(
-                                    'source').get('id'):
-                                locations_writer.writerow({
-                                    'work_id': work_id,
-                                    'source_id': location['source']['id'],
-                                    'landing_page_url': location.get(
-                                        'landing_page_url'),
-                                    'pdf_url': location.get('pdf_url'),
-                                    'is_oa': location.get('is_oa'),
-                                    'version': location.get('version'),
-                                    'license': location.get('license'),
-                                })
+            # biblio
+            if biblio := work.get('biblio'):
+                biblio['work_id'] = work_id
+                biblio_writer.writerow(biblio)
 
-                    # best_oa_locations
-                    if best_oa_location := (work.get('best_oa_location') or {}):
-                        if best_oa_location.get(
-                                'source') and best_oa_location.get(
-                                'source').get('id'):
-                            best_oa_locations_writer.writerow({
-                                'work_id': work_id,
-                                'source_id': best_oa_location['source']['id'],
-                                'landing_page_url': best_oa_location.get(
-                                    'landing_page_url'),
-                                'pdf_url': best_oa_location.get('pdf_url'),
-                                'is_oa': best_oa_location.get('is_oa'),
-                                'version': best_oa_location.get('version'),
-                                'license': best_oa_location.get('license'),
-                            })
+            # topics
+            for topic in work.get('topics', []):
+                if topic_id := topic.get('id'):
+                    topics_writer.writerow({
+                        'work_id': work_id,
+                        'topic_id': topic_id,
+                        'score': topic.get('score')
+                    })
 
-                    # authorships
-                    if authorships := work.get('authorships'):
-                        for authorship in authorships:
-                            if author_id := authorship.get('author', {}).get(
-                                    'id'):
-                                institutions = authorship.get('institutions')
-                                institution_ids = [i.get('id') for i in
-                                                   institutions]
-                                institution_ids = [i for i in institution_ids if
-                                                   i]
-                                institution_ids = institution_ids or [None]
+            # concepts
+            for concept in work.get('concepts'):
+                if concept_id := concept.get('id'):
+                    concepts_writer.writerow({
+                        'work_id': work_id,
+                        'concept_id': concept_id,
+                        'score': concept.get('score'),
+                    })
 
-                                for institution_id in institution_ids:
-                                    authorships_writer.writerow({
-                                        'work_id': work_id,
-                                        'author_position': authorship.get(
-                                            'author_position'),
-                                        'author_id': author_id,
-                                        'institution_id': institution_id,
-                                        'raw_affiliation_string': authorship.get(
-                                            'raw_affiliation_string'),
-                                    })
+            # ids
+            if ids := work.get('ids'):
+                ids['work_id'] = work_id
+                ids_writer.writerow(ids)
 
-                    # biblio
-                    if biblio := work.get('biblio'):
-                        biblio['work_id'] = work_id
-                        biblio_writer.writerow(biblio)
+            # mesh
+            for mesh in work.get('mesh'):
+                mesh['work_id'] = work_id
+                mesh_writer.writerow(mesh)
 
-                    # topics
-                    for topic in work.get('topics', []):
-                        if topic_id := topic.get('id'):
-                            topics_writer.writerow({
-                                'work_id': work_id,
-                                'topic_id': topic_id,
-                                'score': topic.get('score')
-                            })
+            # open_access
+            if open_access := work.get('open_access'):
+                open_access['work_id'] = work_id
+                open_access_writer.writerow(open_access)
 
-                    # concepts
-                    for concept in work.get('concepts'):
-                        if concept_id := concept.get('id'):
-                            concepts_writer.writerow({
-                                'work_id': work_id,
-                                'concept_id': concept_id,
-                                'score': concept.get('score'),
-                            })
+            # referenced_works
+            for referenced_work in work.get('referenced_works'):
+                if referenced_work:
+                    referenced_works_writer.writerow({
+                        'work_id': work_id,
+                        'referenced_work_id': referenced_work
+                    })
 
-                    # ids
-                    if ids := work.get('ids'):
-                        ids['work_id'] = work_id
-                        ids_writer.writerow(ids)
-
-                    # mesh
-                    for mesh in work.get('mesh'):
-                        mesh['work_id'] = work_id
-                        mesh_writer.writerow(mesh)
-
-                    # open_access
-                    if open_access := work.get('open_access'):
-                        open_access['work_id'] = work_id
-                        open_access_writer.writerow(open_access)
-
-                    # referenced_works
-                    for referenced_work in work.get('referenced_works'):
-                        if referenced_work:
-                            referenced_works_writer.writerow({
-                                'work_id': work_id,
-                                'referenced_work_id': referenced_work
-                            })
-
-                    # related_works
-                    for related_work in work.get('related_works'):
-                        if related_work:
-                            related_works_writer.writerow({
-                                'work_id': work_id,
-                                'related_work_id': related_work
-                            })
-
+            # related_works
+            for related_work in work.get('related_works'):
+                if related_work:
+                    related_works_writer.writerow({
+                        'work_id': work_id,
+                        'related_work_id': related_work
+                    })
+                    
             files_done += 1
-            if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
-                break
+            # if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+            #     break
+            if files_done % 50 == 0: print(files_done)
 
 
 def init_dict_writer(csv_file, file_spec, **kwargs):
