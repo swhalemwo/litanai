@@ -168,9 +168,9 @@ csv_files = {
                 'abstract_text',
                 'language',
                 'volume', 'issue', 'first_page', 'last_page', # biblio
-                'openalex', 'doi', 'mag', 'pmid', 'pmcid', # ids
+                'openalex', 'mag', 'pmid', 'pmcid', # ids
                 'is_oa', 'oa_status', 'oa_url', 'any_repository_has_fulltext', # open access
-                'source_id', 'landing_page_url', 'pdf_url', 'is_oa', 'version', 'license' # prim locs
+                'source_id', 'landing_page_url', 'pdf_url', 'version', 'license' # prim locs
             ]
         },
         # 'primary_locations': {
@@ -684,27 +684,33 @@ def flatten_works(l_works):
     
     # breakpoint()
 
+    # gzip.open(file_spec['primary_locations']['name'], 'wt',
+    #           encoding='utf-8') as primary_locations_csv, \
+
+    # gzip.open(file_spec['biblio']['name'], 'wt',
+    #           encoding='utf-8') as biblio_csv, \
+         
+    # gzip.open(file_spec['ids']['name'], 'wt',
+    #           encoding='utf-8') as ids_csv, \
+    
+    # gzip.open(file_spec['open_access']['name'], 'wt',
+    #           encoding='utf-8') as open_access_csv, \
+    
+
+
     with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
-         # gzip.open(file_spec['primary_locations']['name'], 'wt',
-         #           encoding='utf-8') as primary_locations_csv, \
             gzip.open(file_spec['locations']['name'], 'wt',
                       encoding='utf-8') as locations, \
             gzip.open(file_spec['best_oa_locations']['name'], 'wt',
                       encoding='utf-8') as best_oa_locations, \
             gzip.open(file_spec['authorships']['name'], 'wt',
                       encoding='utf-8') as authorships_csv, \
-            # gzip.open(file_spec['biblio']['name'], 'wt',
-            #           encoding='utf-8') as biblio_csv, \
             gzip.open(file_spec['topics']['name'], 'wt',
                       encoding='utf-8') as topics_csv, \
             gzip.open(file_spec['concepts']['name'], 'wt',
                       encoding='utf-8') as concepts_csv, \
-            # gzip.open(file_spec['ids']['name'], 'wt',
-            #           encoding='utf-8') as ids_csv, \
             gzip.open(file_spec['mesh']['name'], 'wt',
                       encoding='utf-8') as mesh_csv, \
-            # gzip.open(file_spec['open_access']['name'], 'wt',
-            #           encoding='utf-8') as open_access_csv, \
             gzip.open(file_spec['referenced_works']['name'], 'wt',
                       encoding='utf-8') as referenced_works_csv, \
             gzip.open(file_spec['related_works']['name'], 'wt',
@@ -767,13 +773,12 @@ def flatten_works(l_works):
                         'landing_page_url': primary_location.get(
                             'landing_page_url'),
                         'pdf_url': primary_location.get('pdf_url'),
-                        'is_oa': primary_location.get('is_oa'),
                         'version': primary_location.get('version'),
                         'license': primary_location.get('license'),
                     }
 
-            works_writer.writerow(work)
 
+            
             # locations
             if locations := work.get('locations'):
                 for location in locations:
@@ -829,8 +834,12 @@ def flatten_works(l_works):
 
             # biblio
             if biblio := work.get('biblio'):
-                biblio['work_id'] = work_id
-                biblio_writer.writerow(biblio)
+                dict_biblio = biblio
+                # biblio['work_id'] = work_id
+                # biblio_writer.writerow(biblio)
+
+
+            
 
             # topics
             for topic in work.get('topics', []):
@@ -852,8 +861,14 @@ def flatten_works(l_works):
 
             # ids
             if ids := work.get('ids'):
-                ids['work_id'] = work_id
-                ids_writer.writerow(ids)
+                # print(ids)
+                
+                dict_ids = ids
+                if 'doi' in list(dict_ids.keys()):
+                    ids.pop('doi')
+                
+                # ids['work_id'] = work_id
+                # ids_writer.writerow(ids)
 
             # mesh
             for mesh in work.get('mesh'):
@@ -862,8 +877,18 @@ def flatten_works(l_works):
 
             # open_access
             if open_access := work.get('open_access'):
-                open_access['work_id'] = work_id
-                open_access_writer.writerow(open_access)
+                dict_oa = open_access
+                # open_access['work_id'] = work_id
+                # open_access_writer.writerow(open_access)
+
+            # merge all work related dicts to one
+            if 'is_oa' in list(dict_primloc.keys()):
+                yeet = dict_primloc.pop('is_oa')
+
+            
+            work2 = work | dict_biblio | dict_ids | dict_oa | dict_primloc
+            works_writer.writerow(work2)
+
 
             # referenced_works
             for referenced_work in work.get('referenced_works'):
