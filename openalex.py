@@ -50,7 +50,7 @@ def pickle_journal (l_papers, journal_id, DIR_JOURNAL_PICKLES):
 
 def pickle_load_journal (journal_id, DIR_JOURNAL_PICKLES):
 
-    with open(os.path.join(DIR_JOURNAL_PICKLES, journal_id), 'r') as file:
+    with open(os.path.join(DIR_JOURNAL_PICKLES, journal_id), 'rb') as file:
         pickle.load(file)
 
 
