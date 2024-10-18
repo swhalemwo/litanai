@@ -168,7 +168,7 @@ csv_files = {
                 'abstract_text',
                 'language',
                 'volume', 'issue', 'first_page', 'last_page', # biblio
-                'openalex', 'mag', 'pmid', 'pmcid', # ids
+                'mag', 'pmid', 'pmcid', # ids
                 'is_oa', 'oa_status', 'oa_url', 'any_repository_has_fulltext', # open access
                 'source_id', 'landing_page_url', 'pdf_url', 'version', 'license' # prim locs
             ]
