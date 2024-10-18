@@ -1,6 +1,6 @@
 import pandas as pd
 import pyalex
-from pyalex import Works, Authors, Sources, Institutions, Topics, Publishers, Funders, config, invert_abstract
+from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publishers, Funders, config, invert_abstract
 
 from flatten_openalex_jsonl import flatten_works, init_dict_writer
 
@@ -51,7 +51,9 @@ def pickle_journal (l_papers, journal_id, DIR_JOURNAL_PICKLES):
 def pickle_load_journal (journal_id, DIR_JOURNAL_PICKLES):
 
     with open(os.path.join(DIR_JOURNAL_PICKLES, journal_id), 'rb') as file:
-        pickle.load(file)
+        l_papers = pickle.load(file)
+
+    return(l_papers)
 
 
 
@@ -75,29 +77,82 @@ def ingest_csv(DIR_CSV) :
 
 
 
+def proc_journal (id_journal) :
+    # download (or read), flatten and ingest a data
+
+    id_journal_short = id_journal.replace('https://openalex.org/', '')
+    print(f"id_journal_short: {id_journal_short}")
+    
+    # breakpoint()
+    
+    ## get data
+    if id_journal_short not in os.listdir(DIR_JOURNAL_PICKLES):
+        print("downloading papers")
+        l_papers = gl_journal_papers(id_journal)
+        pickle_journal(l_papers, id_journal_short, DIR_JOURNAL_PICKLES)
+    else:
+        l_papers = pickle_load_journal(id_journal_short, DIR_JOURNAL_PICKLES)
+        print(f"retrieved {len(l_papers)} from file")
+    
+    print("flattening papers to csv")
+    flatten_works(l_papers)
+    
+    # FIXME: ingestion should be conditional
+    print("ingesting works")
+    ingest_csv(DIR_CSV)
 
 
-DIR_JOURNAL_PICKLES = "/run/media/johannes/data/litanai/journals/"
-
-
-l_papers_poetics = gl_journal_papers('https://openalex.org/S98355519')
-flatten_works(l_papers_poetics)
-
-
-
-l_papers_asr = gl_journal_papers('https://openalex.org/s157620343')
-
-l_papers_asr = pickle_load_journal('s157620343', DIR_JOURNAL_PICKLES)
-
-flatten_works(l_papers_asr[0:300])
-
-pickle_journal(l_papers_asr, "s157620343", DIR_JOURNAL_PICKLES)
-
-
+def get_journals ():
+    
+    
+    
 
 
 DIR_CSV = '/home/johannes/Dropbox/proj/litanai/oa_csv_files/'
+DIR_JOURNAL_PICKLES = "/run/media/johannes/data/litanai/journals/"
 
-ingest_csv(DIR_CSV)
 
-nbr_papers = Works().filter(primary_location= {"source": {"id" :'https://openalex.org/s157620343'}}).count()
+
+l_journals = ['https://openalex.org/s98355519', 'https://openalex.org/s157620343']  # poetics, ASR
+
+[proc_journal(journal) for journal in l_journals]
+
+
+
+
+
+Sources().count()
+
+asr = Sources()["S157620343"]
+
+
+
+Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").count()
+
+
+
+l_sources = Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").get()
+
+len(l_sources)
+[print(i['display_name'], i['id']) for i in l_sources]
+
+
+
+l_concepts = Concepts().search_filter(display_name = "sociology").get()
+[print(i['display_name'], i['id']) for i in l_concepts]
+
+l_topics = Topics().search_filter(display_name = "social sciences").get()
+[print(i['display_name'], i['id']) for i in l_topics]
+
+
+# Sources().filter(topics = {'id' : 'https://openalex.org/C144024400'}).count()
+# topics doesn't work, have to use concept
+
+Sources().filter(concept = {'id' : '3312'}).count()
+
+# these work
+Sources().filter(country_code = "US").count()
+Sources().filter(is_oa = True).count() 
+Sources().filter(type = "journal").count() 
+Sources().filter(summary_stats = {'h_index' : 5}).count()
+
