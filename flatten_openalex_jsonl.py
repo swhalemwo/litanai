@@ -1,16 +1,11 @@
-import csv
-import glob
-import gzip
-import json
-import os
 
-SNAPSHOT_DIR = 'openalex-snapshot'
-DIR_CSV = 'csv-files'
+# SNAPSHOT_DIR = 'openalex-snapshot'
+# DIR_CSV = 'csv-files'
 
-if not os.path.exists(DIR_CSV):
-    os.mkdir(DIR_CSV)
+# if not os.path.exists(DIR_CSV):
+#     os.mkdir(DIR_CSV)
 
-FILES_PER_ENTITY = int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
+# FILES_PER_ENTITY = int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
 
 csv_files = {
     'authors': {
@@ -698,30 +693,30 @@ def flatten_works(l_works):
     
 
 
-    with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
-            gzip.open(file_spec['locations']['name'], 'wt', encoding='utf-8') as locations, \
+    with gzip.open(file_spec['works']['name'],                'wt', encoding='utf-8') as works_csv, \
+            gzip.open(file_spec['locations']['name'],         'wt', encoding='utf-8') as locations, \
             gzip.open(file_spec['best_oa_locations']['name'], 'wt', encoding='utf-8') as best_oa_locations, \
-            gzip.open(file_spec['authorships']['name'], 'wt', encoding='utf-8') as authorships_csv, \
-            gzip.open(file_spec['topics']['name'], 'wt', encoding='utf-8') as topics_csv, \
-            gzip.open(file_spec['concepts']['name'], 'wt', encoding='utf-8') as concepts_csv, \
-            gzip.open(file_spec['mesh']['name'], 'wt', encoding='utf-8') as mesh_csv, \
-            gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8') as referenced_works_csv, \
-            gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv:
+            gzip.open(file_spec['authorships']['name'],       'wt', encoding='utf-8') as authorships_csv, \
+            gzip.open(file_spec['topics']['name'],            'wt', encoding='utf-8') as topics_csv, \
+            gzip.open(file_spec['concepts']['name'],          'wt', encoding='utf-8') as concepts_csv, \
+            gzip.open(file_spec['mesh']['name'],              'wt', encoding='utf-8') as mesh_csv, \
+            gzip.open(file_spec['referenced_works']['name'],  'wt', encoding='utf-8') as referenced_works_csv, \
+            gzip.open(file_spec['related_works']['name'],     'wt', encoding='utf-8') as related_works_csv:
 
         # primary_locations_writer = init_dict_writer(primary_locations_csv, file_spec['primary_locations'])
         # biblio_writer = init_dict_writer(biblio_csv, file_spec['biblio'])
         # ids_writer = init_dict_writer(ids_csv, file_spec['ids'], extrasaction='ignore')
         # open_access_writer = init_dict_writer(open_access_csv, file_spec['open_access'])
 
-        works_writer = init_dict_writer(works_csv, file_spec['works'], extrasaction='ignore')
-        locations_writer = init_dict_writer(locations, file_spec['locations'])
-        best_oa_locations_writer = init_dict_writer(best_oa_locations, file_spec['best_oa_locations'])
-        authorships_writer = init_dict_writer(authorships_csv, file_spec['authorships'])
-        topics_writer = init_dict_writer(topics_csv, file_spec['topics'])
-        concepts_writer = init_dict_writer(concepts_csv, file_spec['concepts'])
-        mesh_writer = init_dict_writer(mesh_csv, file_spec['mesh'])
-        referenced_works_writer = init_dict_writer(referenced_works_csv, file_spec['referenced_works'])
-        related_works_writer = init_dict_writer(related_works_csv, file_spec['related_works'])
+        works_writer             = init_dict_writer(works_csv,            file_spec['works'], extrasaction='ignore')
+        locations_writer         = init_dict_writer(locations,            file_spec['locations'])
+        best_oa_locations_writer = init_dict_writer(best_oa_locations,    file_spec['best_oa_locations'])
+        authorships_writer       = init_dict_writer(authorships_csv,      file_spec['authorships'])
+        topics_writer            = init_dict_writer(topics_csv,           file_spec['topics'])
+        concepts_writer          = init_dict_writer(concepts_csv,         file_spec['concepts'])
+        mesh_writer              = init_dict_writer(mesh_csv,             file_spec['mesh'])
+        referenced_works_writer  = init_dict_writer(referenced_works_csv, file_spec['referenced_works'])
+        related_works_writer     = init_dict_writer(related_works_csv,    file_spec['related_works'])
 
         files_done = 0
         # for jsonl_file_name in glob.glob(
