@@ -34,13 +34,23 @@ CREATE TABLE IF NOT EXISTS litanai.works (
 ) ENGINE = MergeTree()
   ORDER BY publication_year;
 
-DROP TABLE IF EXISTS litanai.works_related_works
+DROP TABLE IF EXISTS litanai.works_related_works;
 
 CREATE TABLE IF NOT EXISTS litanai.works_related_works (
   work_id text,
   related_work_id text
   ) ENGINE = MergeTree()
-  ORDER BY related_work_id
+  ORDER BY related_work_id;
+
+
+DROP TABLE IF EXISTS litanai.works_referenced_works;
+  
+CREATE TABLE IF NOT EXISTS litanai.works_referenced_works (
+    work_id text,
+    referenced_work_id text
+) ENGINE = MergeTree()
+  ORDER BY referenced_work_id;
+
 
   
   
