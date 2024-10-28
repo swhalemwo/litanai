@@ -1,3 +1,9 @@
+import csv
+import glob
+import gzip
+import json
+import os
+
 import pandas as pd
 import pyalex
 from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publishers, Funders, config, invert_abstract
@@ -129,16 +135,74 @@ def proc_journal (id_journal) :
     ingest_csv(DIR_CSV)
 
 
-def get_journals ():
+def get_very_related_works ():
+    "get related works, then get their journals later"
+
+    # ch_client = clickhouse_connect.get_client(database = "litanai")
+
+    # dt_relworks = ch_client.query_df("""
+    # SELECT referenced_work_id, cnt FROM (  
+    # SELECT referenced_work_id, COUNT(referenced_work_id) AS cnt
+    # FROM works_related_works
+    # GROUP BY referenced_work_id
+    # ORDER BY cnt DESC
+    # ) AS r ANTI LEFT JOIN works AS w ON r.referenced_work_id = w.id
+    # limit 20""")
+
+
+    t_refworks = Table('works_referenced_works', metadata, autoload_with = engine)
+    t_works = Table('works', metadata, autoload_with = engine)
+
+    sq = select(t_refworks.c.referenced_work_id,
+                func.count(t_refworks.c.referenced_work_id).label('cnt')
+                ).group_by(t_refworks.c.referenced_work_id).order_by(desc('cnt')).subquery()
+
+    # use hacky query: not-in statement rather than anti-join
+    query_hacky = (select(sq.c.referenced_work_id, sq.c.cnt)
+                   .where(sq.c.referenced_work_id.notin_(select(t_works.c.id)))
+                   .limit(20))
+    
+    # query = (select(sq.c.referenced_work_id, sq.c.cnt)
+    #          .outerjoin(t_works, sq.c.referenced_work_id == t_works.c.id))
+    #          # .where(t_works.c.id.is_(None)))
+    
+    # print(query)
+    # pd.read_sql(query_hacky, engine)
+    # pd.read_sql(select(sq), engine)
+
+    
+    dt_refworks = pd.read_sql(query_hacky, engine)
+    
+    # https://openalex.org/W2084077463
+
+    
+    l_works = Works()[list(dt_refworks['referenced_work_id'])]
+
+    l_journals_prep = []
+    for w in l_works:
+        if prim_loc := w.get('primary_location'):
+            if src := prim_loc.get('source'):
+                if dispname := src.get('display_name'):
+                    l_journals_prep.append(src)
+
+    # l_journals = {j['id']:j for j in l_journals_prep}
+    l_journals = list({j['id']:j for j in l_journals_prep}.values())
     
     
+    l_journalnames = [j['display_name'] for j in l_journals]
+    print(l_journalnames)
+    print(len(l_journalnames))
+
+    return(l_journals)
+
     
+l_journals_to_dl = get_very_related_works()
 
+[proc_journal(j['id']) for j in l_journals_to_dl]
+1+1
 
-DIR_CSV = '/home/johannes/Dropbox/proj/litanai/oa_csv_files/'
-DIR_JOURNAL_PICKLES = "/run/media/johannes/data/litanai/journals/"
-
-
+    
+proc_journal('https://openalex.org/s157620343')
 
 l_journals = ['https://openalex.org/s98355519', 'https://openalex.org/s157620343']  # poetics, ASR
 
