@@ -6,6 +6,27 @@ from flatten_openalex_jsonl import flatten_works, init_dict_writer
 
 import clickhouse_connect
 import pickle
+import subprocess
+
+
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, MetaData, create_engine, text, select, tuple_, func, desc
+from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, types, engines
+from requests import Session
+
+
+uri = 'clickhouse://default:@localhost/litanai'
+uri = 'clickhouse+native://localhost/litanai'
+engine = create_engine(uri)
+session = make_session(engine)
+metadata = MetaData()
+
+metadata.reflect(bind=engine)
+# metadata.tables.keys()
+
+DIR_CSV = '/home/johannes/Dropbox/proj/litanai/oa_csv_files/'
+DIR_JOURNAL_PICKLES = "/run/media/johannes/data/litanai/journals/"
+
+
 
 
 config.email
@@ -62,11 +83,17 @@ def ingest_csv(DIR_CSV) :
     "ingest the flattened files into clickhouse"
     ch_client = clickhouse_connect.get_client(database = "litanai")
 
-    cmd_ingest_works = gc_ingest_cmd("works", DIR_CSV)
+    
+    l_entities = ['works', 'works_related_works', 'works_referenced_works']
+    l_cmd_ingest = [gc_ingest_cmd(entity, DIR_CSV) for entity in l_entities]
+    # cmd_ingest_works = gc_ingest_cmd("works", DIR_CSV)
     # ch_client.command(cmd_ingest_works)
 
-    subprocess.run(cmd_ingest_works, shell = True, stdout=subprocess.PIPE, text = True)
     
+    # subprocess.run(cmd_ingest_works, shell = True, stdout=subprocess.PIPE, text = True)
+    
+    [subprocess.run(cmd_ingest, shell = True, stdout=subprocess.PIPE, text = True) for cmd_ingest in l_cmd_ingest]
+
 
     # class(dtx.iloc[314]['abstract_text'])
     # dtx.loc[313]
