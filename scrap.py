@@ -127,3 +127,31 @@ flatten_works(l_papers_asr)
 ingest_csv(DIR_CSV)
 
 nbr_papers = Works().filter(primary_location= {"source": {"id" :'https://openalex.org/s157620343'}}).count()
+
+
+# * figuring out sqlalchemy
+
+t_works = metadata.tables['works']
+
+t_works = Table('works', metadata, autoload_with = engine)
+
+query = select(t_works.c.id, t_works.c.cited_by_count).where(t_works.c.publication_year > 2015)
+res = session.execute(query)
+
+rows = res.fetchall()
+len(rows)
+rows[0:5]
+
+
+pd.DataFrame(rows)
+pd.read_sql(query, engine)
+
+
+# works_present = ch_client.query_df("select distinct work_id from works_related_works")
+# works_related = ch_client.query_df("select distinct related_work_id from works_related_works")
+
+# setdiff = set(works_related['related_work_id']) - set(works_present['work_id'])
+# len(setdiff)
+
+
+# def get_journals ():
