@@ -148,19 +148,42 @@ def get_very_related_works ():
     # ) AS r ANTI LEFT JOIN works AS w ON r.referenced_work_id = w.id
     # limit 20""")
 
-
+    # breakpoint()
+    
+    
     t_refworks = Table('works_referenced_works', metadata, autoload_with = engine)
     t_works = Table('works', metadata, autoload_with = engine)
 
-    sq = select(t_refworks.c.referenced_work_id,
-                func.count(t_refworks.c.referenced_work_id).label('cnt')
-                ).group_by(t_refworks.c.referenced_work_id).order_by(desc('cnt')).subquery()
+    # qry = select(t_works.c.source_id, func.count(t_works.c.source_id)
+    #        ).group_by(t_works.c.source_id)
+
+    # pd.read_sql(qry, engine)
+    
+    # first subquery to get referenced work of e.g. poetics
+    sq1 = (select(t_refworks.c.referenced_work_id.label("refw_id"),
+                  func.count().label('cnt'))
+           .where(t_works.c.source_id == "https://openalex.org/S98355519")
+           .join(t_refworks, t_works.c.id == t_refworks.c.work_id)
+           .group_by(t_refworks.c.referenced_work_id)).subquery()
+
+    # now filter out all those I have already
+    sq2 = (select(sq1.c.refw_id, sq1.c.cnt).where(sq1.c.refw_id.notin_(select(t_works.c.id)))
+           .order_by(desc('cnt'))).subquery()
+    
+    # pd.read_sql(select(sq1), engine)
+    
+    
+    # sq = select(t_refworks.c.referenced_work_id.label("refw_id"),
+    #             func.count(t_refworks.c.referenced_work_id).label('cnt')                   
+    #             ).group_by(t_refworks.c.referenced_work_id).order_by(desc('cnt')).subquery()
+    # pd.read_sql(select(sq), engine)
+    
 
     # use hacky query: not-in statement rather than anti-join
-    query_hacky = (select(sq.c.referenced_work_id, sq.c.cnt)
-                   .where(sq.c.referenced_work_id.notin_(select(t_works.c.id)))
-                   .limit(20))
-    
+    # query_hacky = (select(sq.c.refw_id, sq.c.cnt)
+    #                .where(sq.c.refw_id.notin_(select(t_works.c.id)))
+    #                .limit(10))
+     
     # query = (select(sq.c.referenced_work_id, sq.c.cnt)
     #          .outerjoin(t_works, sq.c.referenced_work_id == t_works.c.id))
     #          # .where(t_works.c.id.is_(None)))
@@ -170,12 +193,14 @@ def get_very_related_works ():
     # pd.read_sql(select(sq), engine)
 
     
-    dt_refworks = pd.read_sql(query_hacky, engine)
+    # dt_refworks = pd.read_sql(query_hacky, engine)
+    dt_refworks = pd.read_sql(select(sq2).limit(20), engine)
     
     # https://openalex.org/W2084077463
-
+    # breakpoint()
     
-    l_works = Works()[list(dt_refworks['referenced_work_id'])]
+    l_works = Works()[list(dt_refworks['refw_id'])]
+    # len(l_works)
 
     l_journals_prep = []
     for w in l_works:
@@ -184,8 +209,13 @@ def get_very_related_works ():
                 if dispname := src.get('display_name'):
                     l_journals_prep.append(src)
 
+    # get unique journals
     # l_journals = {j['id']:j for j in l_journals_prep}
     l_journals = list({j['id']:j for j in l_journals_prep}.values())
+
+    # only get journals with less than 75k articles
+    l_journals = [j for j in l_journals if Works().filter(primary_location=
+                                                          {"source": {"id" :j['id']}}).count() < 75000]
     
     
     l_journalnames = [j['display_name'] for j in l_journals]
@@ -197,8 +227,12 @@ def get_very_related_works ():
     
 l_journals_to_dl = get_very_related_works()
 
+
+
 [proc_journal(j['id']) for j in l_journals_to_dl]
-1+1
+
+proc_journal('https://openalex.org/S4306463855')
+
 
     
 proc_journal('https://openalex.org/s157620343')
