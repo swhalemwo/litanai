@@ -49,8 +49,7 @@ def gl_journal_papers (journal_id) :
         primary_location= {"source": {"id" :journal_id}}).paginate(per_page=200, n_max = None)
 
     nbr_papers = Works().filter(primary_location= {"source": {"id" :journal_id}}).count()
-
-    
+    print(f"nbr_papers: {nbr_papers}")
 
     # download all the pages
     l_pages = []
@@ -58,8 +57,8 @@ def gl_journal_papers (journal_id) :
         print(len(page))
         l_pages.append(page)
 
-    # flatten to single articles
-    l_papers = [x for xs in l_pages.copy() for x in xs]
+        # flatten to single articles
+        l_papers = [x for xs in l_pages.copy() for x in xs]
     return(l_papers)
 
 
