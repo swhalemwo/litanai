@@ -93,28 +93,28 @@ def gc_ingest_cmd (entity, DIR_CSV):
     return(cmd)
 
 
-def pickle_journal (l_papers, journal_id, DIR_JOURNAL_PICKLES):
+def pickle_entity (l_entities, entity_id, DIR_ENTITY_PICKLES):
 
-    with open(os.path.join(DIR_JOURNAL_PICKLES, journal_id), 'wb') as file:
-        pickle.dump(l_papers, file)
-
-
-def pickle_load_journal (journal_id, DIR_JOURNAL_PICKLES):
-
-    with open(os.path.join(DIR_JOURNAL_PICKLES, journal_id), 'rb') as file:
-        l_papers = pickle.load(file)
-
-    return(l_papers)
+    with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'wb') as file:
+        pickle.dump(l_entities, file)
 
 
+def pickle_load_entity (entity_id, DIR_ENTITY_PICKLES):
+
+    with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'rb') as file:
+        l_entities = pickle.load(file)
+
+    return(l_entities)
 
 
-def ingest_csv(DIR_CSV) :
+
+
+def ingest_csv(DIR_CSV, l_entities) :
     "ingest the flattened files into clickhouse"
-    ch_client = clickhouse_connect.get_client(database = "litanai")
+    # ch_client = clickhouse_connect.get_client(database = "litanai")
 
     
-    l_entities = ['works', 'works_related_works', 'works_referenced_works']
+
     l_cmd_ingest = [gc_ingest_cmd(entity, DIR_CSV) for entity in l_entities]
     # cmd_ingest_works = gc_ingest_cmd("works", DIR_CSV)
     # ch_client.command(cmd_ingest_works)
@@ -146,9 +146,9 @@ def proc_journal (id_journal) :
     if id_journal_short not in os.listdir(DIR_JOURNAL_PICKLES):
         print("downloading papers")
         l_papers = gl_journal_papers(id_journal)
-        pickle_journal(l_papers, id_journal_short, DIR_JOURNAL_PICKLES)
+        pickle_entity(l_papers, id_journal_short, DIR_JOURNAL_PICKLES)
     else:
-        l_papers = pickle_load_journal(id_journal_short, DIR_JOURNAL_PICKLES)
+        l_papers = pickle_load_entity(id_journal_short, DIR_JOURNAL_PICKLES)
         print(f"retrieved {len(l_papers)} from file")
     
     print("flattening papers to csv")
@@ -211,14 +211,15 @@ def get_very_related_works (l_seed_journals):
     # first subquery to get referenced work of e.g. poetics
     sq1 = (select(t_refworks.c.referenced_work_id.label("refw_id"),
                   func.count().label('cnt'))
-           .where(t_works.c.source_id == "https://openalex.org/S98355519")
+           .where(t_works.c.source_id.in_(l_seed_journals))
            .join(t_refworks, t_works.c.id == t_refworks.c.work_id)
            .group_by(t_refworks.c.referenced_work_id)).subquery()
 
     # now filter out all those I have already
     sq2 = (select(sq1.c.refw_id, sq1.c.cnt).where(sq1.c.refw_id.notin_(select(t_works.c.id)))
            .order_by(desc('cnt'))).subquery()
-    
+
+    # print(sq1)
     # pd.read_sql(select(sq1), engine)
     
     
@@ -264,7 +265,7 @@ def get_very_related_works (l_seed_journals):
 
     # only get journals with less than 75k articles
     l_journals = [j for j in l_journals if Works().filter(primary_location=
-                                                          {"source": {"id" :j['id']}}).count() < 75000]
+                                                          {"source": {"id" :j['id']}}).count() < 200000]
     
     
     l_journalnames = [j['display_name'] for j in l_journals]
@@ -273,59 +274,14 @@ def get_very_related_works (l_seed_journals):
 
     return(l_journals)
 
-    
-l_journals_to_dl = get_very_related_works()
-
-
-
-[proc_journal(j['id']) for j in l_journals_to_dl]
-
-proc_journal('https://openalex.org/S4306463855')
-
+# l_seed_journals = ['https://openalex.org/S31225034', 'https://openalex.org/s98355519',
+#                    'https://openalex.org/s157620343']
 
     
-proc_journal('https://openalex.org/s157620343')
-
-l_journals = ['https://openalex.org/s98355519', 'https://openalex.org/s157620343']  # poetics, ASR
-
-[proc_journal(journal) for journal in l_journals]
+# l_journals_to_dl = get_very_related_works(l_seed_journals)
 
 
 
 
 
-Sources().count()
-
-asr = Sources()["S157620343"]
-
-
-
-Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").count()
-
-
-
-l_sources = Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").get()
-
-len(l_sources)
-[print(i['display_name'], i['id']) for i in l_sources]
-
-
-
-l_concepts = Concepts().search_filter(display_name = "sociology").get()
-[print(i['display_name'], i['id']) for i in l_concepts]
-
-l_topics = Topics().search_filter(display_name = "social sciences").get()
-[print(i['display_name'], i['id']) for i in l_topics]
-
-
-# Sources().filter(topics = {'id' : 'https://openalex.org/C144024400'}).count()
-# topics doesn't work, have to use concept
-
-Sources().filter(concept = {'id' : '3312'}).count()
-
-# these work
-Sources().filter(country_code = "US").count()
-Sources().filter(is_oa = True).count() 
-Sources().filter(type = "journal").count() 
-Sources().filter(summary_stats = {'h_index' : 5}).count()
-
+proc_journal('https://openalex.org/C36289849')

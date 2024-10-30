@@ -155,3 +155,73 @@ pd.read_sql(query, engine)
 
 
 # def get_journals ():
+
+
+# * downloading individual journals
+[proc_journal(j['id']) for j in l_journals_to_dl]
+
+proc_journal('https://openalex.org/S4306463855')
+proc_journal('https://openalex.org/S31225034')
+
+
+    
+proc_journal('https://openalex.org/s157620343')
+
+l_journals = ['https://openalex.org/s98355519', 'https://openalex.org/s157620343']  # poetics, ASR
+
+[proc_journal(journal) for journal in l_journals]
+
+
+
+
+
+Sources().count()
+
+asr = Sources()["S157620343"]
+
+
+# * api testing
+
+
+l_sources = Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").get()
+
+len(l_sources)
+[print(i['display_name'], i['id']) for i in l_sources]
+
+
+
+l_concepts = Concepts().search_filter(display_name = "sociology").get()
+[print(i['display_name'], i['id']) for i in l_concepts]
+
+l_topics = Topics().search_filter(display_name = "social sciences").get()
+[print(i['display_name'], i['id']) for i in l_topics]
+
+
+# Sources().filter(topics = {'id' : 'https://openalex.org/C144024400'}).count()
+# topics doesn't work, have to use concept
+
+Sources().filter(concept = {'id' : '3312'}).count()
+
+# these work
+Sources().filter(country_code = "US").count()
+Sources().filter(is_oa = True).count() 
+Sources().filter(type = "journal").count() 
+Sources().filter(summary_stats = {'h_index' : 5}).count()
+
+
+# sociology: 50k
+Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").count()
+
+# social science: 5.7k huh
+Sources().filter(concept = {'id' : 'https://openalex.org/C36289849'}, type = "journal").count()
+
+# art history
+Sources().filter(concept = {'id' : 'https://openalex.org/c52119013'}, type = "journal").count()
+
+
+l_journals = gl_journal_info('https://openalex.org/C48798503')
+flatten_sources(l_journals)
+l_entities_journals = ["sources", "sources_counts_by_year", 'sources_ids']
+ingest_csv(DIR_CSV, l_entities_journals)
+
+# len(l_journals)
