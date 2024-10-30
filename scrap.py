@@ -299,5 +299,36 @@ pd.reset_option('display.max_rows')
 
 
 
+# * see which journals are in the database
+
+t_sources = Table('sources', metadata, autoload_with = engine)
+
+# merge t_works with t_sources on source_id to get names of unique entries
+# also get number of entries for each source
+
+# first get counts of all sources, then merge with sources table to get names
+qry1 = (select(t_works.c.source_id, func.count(t_works.c.source_id).label('cnt'))
+       .group_by(t_works.c.source_id)).subquery()
+
+qry2 = (select (qry1.c.source_id, t_sources.c.display_name, qry1.c.cnt)
+        .join(t_sources, qry1.c.source_id == t_sources.c.id).distinct()).subquery()
+
+.join(t_sources, t_works.c.source_id == t_sources.c.id))
+
+# see which entries are in qry1 but not in qry2
+qry3 = select(qry1.c.source_id).except_(select(qry2.c.source_id)).subquery()
+
+pd.read_sql(select(qry1), engine)
+pd.read_sql(select(qry2), engine)
+pd.read_sql(select(qry3), engine)
+
+
+Works().filter(primary_location= {"source": {"id" :"https://openalex.org/S4210172589"}}).count()
+
+Sources().["https://openalex.org/S4210172589"].
+
+
+
+
 
 
