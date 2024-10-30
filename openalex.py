@@ -42,23 +42,119 @@ config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
 
+def dl_pages (pager, nbr_entities):
+    "download pages of pager"
+
+    l_pages = []
+    time_start = time.time()
+    nbr_entities_dld = 0 
+
+    for page in pager:
+    
+        l_pages.append(page)
+        time_dl = time.time()
+        time_passed = round(time_dl - time_start,1)
+        
+        nbr_entities_dld += len(page)
+        perc_dld = round(nbr_entities_dld*100/nbr_entities,1)
+        print(f"{nbr_entities_dld}/{nbr_entities} ({perc_dld}%) in {time_passed} secs")
+
+    l_entities = [x for xs in l_pages.copy() for x in xs]
+
+    return(l_entities)
+
+
+
+def gl_journal_longworks(journal_id, year):
+    "download each year for a journal"
+
+    
+    # breakpoint()
+    # get min and max year of articles
+    nbr_works = Works().filter(primary_location= {"source": {"id" :journal_id}}, publication_year = year).count()
+    print(nbr_works)
+    if nbr_works == 0:
+        l_longworks = []
+    else: 
+        pager = (Works().filter(primary_location= {"source": {"id" :journal_id}}, publication_year = year)
+                 .paginate(per_page=200, n_max = None))
+        
+        l_longworks = dl_pages(pager, nbr_works)
+
+    return(l_longworks)
+
+def proc_journal_longworks (journal_id, ingest_only_fresh):
+    
+    # breakpoint()
+    id_journal_short = journal_id.replace('https://openalex.org/', '')
+    print(f"id_journal_short: {id_journal_short}")
+
+
+    year = 2024 # start with 2024, then count down
+    
+    year_skipped_in_row = 0
+
+    # go through all the years (year_counts don't include all publications)
+    while True:
+        
+        journal_year_id = f"{id_journal_short}_{year}"
+        # if the year is not in the pickles, download it
+        if journal_year_id not in os.listdir(DIR_JOURNAL_PICKLES):
+            print(f"downloading papers for {year}")
+            
+            l_longworks = gl_journal_longworks(journal_id, year)
+            # len(l_longworks)
+            
+            pickle_entity(l_longworks, journal_year_id, DIR_JOURNAL_PICKLES)
+            b_data_fresh = True
+
+        
+        else:
+            # if year is downloaded, load it
+            l_longworks = pickle_load_entity(journal_year_id, DIR_JOURNAL_PICKLES)
+            print(f"retrieved {len(l_longworks)} from file")
+            b_data_fresh = False
+
+            
+        print("flattening papers to csv")
+        flatten_works(l_longworks)
+        l_entities = ['works', 'works_related_works', 'works_referenced_works']
+        
+        
+        ingest_dispatcher(l_entities, ingest_only_fresh, b_data_fresh)
+
+        if len(l_longworks) == 0:
+            year_skipped_in_row += 1
+        else:
+            year_skipped_in_row = 0
+
+        if year_skipped_in_row == 10:
+            break
+
+        year -= 1
+
+    
+
+
 def gl_journal_works (journal_id) :
     
-    # get pager to iterate on
-    l_pager = Works().filter(
-        primary_location= {"source": {"id" :journal_id}}).paginate(per_page=200, n_max = None)
 
     nbr_papers = Works().filter(primary_location= {"source": {"id" :journal_id}}).count()
     print(f"nbr_papers: {nbr_papers}")
+
+    l_pager = Works().filter(
+        primary_location= {"source": {"id" :journal_id}}).paginate(per_page=200, n_max = None)
 
     # download all the pages
     l_pages = []
     for page in l_pager:
         print(len(page))
         l_pages.append(page)
-    
+
     # flatten to single articles
     l_papers = [x for xs in l_pages.copy() for x in xs]
+
+            
     return(l_papers)
 
 def gl_journal_info (concept_id):
@@ -136,6 +232,36 @@ def ingest_csv(DIR_CSV, l_entities) :
        # [os.remove(DIR_CSV + file) for file in os.listdir(DIR_CSV)]
 
 
+def ingest_dispatcher(l_entities, ingest_only_fresh, b_data_fresh):
+    "ingest depending on switches"
+
+    if ingest_only_fresh == True and b_data_fresh == True:
+        print("ingesting works")
+        ingest_csv(DIR_CSV, l_entities)
+
+    if ingest_only_fresh == False and b_data_fresh == False:
+        print("skip ingesting (despite data not fresh)")
+        ingest_csv(DIR_CSV, l_entities)
+
+    if ingest_only_fresh == True and b_data_fresh == False:
+        print("skip ingesting (data not fresh)")
+
+    if ingest_only_fresh == False and b_data_fresh == True:
+        print("ingest data")
+        ingest_csv(DIR_CSV, l_entities)
+    
+
+def proc_journal_dispatch(journal_id, ingest_only_fresh):
+    "decide whether to download all works in one swoop or by year"
+
+    nbr_papers = Works().filter(primary_location= {"source": {"id" :journal_id}}).count()
+
+    if nbr_papers > 100000:
+        proc_journal_longworks(journal_id, ingest_only_fresh)
+    else:
+        proc_journal_works(journal_id, ingest_only_fresh)
+        
+
 
 def proc_journal_works (id_journal, ingest_only_fresh) :
     # download (or read), flatten and ingest a set of works from a journal
@@ -163,23 +289,9 @@ def proc_journal_works (id_journal, ingest_only_fresh) :
     
     # FIXME: ingestion should be conditional
     
-
     l_entities = ['works', 'works_related_works', 'works_referenced_works']
+    ingest_dispatcher(l_entities, ingest_only_fresh, b_data_fresh)
     
-    if ingest_only_fresh == True and b_data_fresh == True:
-        print("ingesting works")
-        ingest_csv(DIR_CSV, l_entities)
-
-    if ingest_only_fresh == False and b_data_fresh == False:
-        print("skip ingesting (despite data not fresh)")
-        ingest_csv(DIR_CSV, l_entities)
-
-    if ingest_only_fresh == True and b_data_fresh == False:
-        print("skip ingesting (data not fresh)")
-
-    if ingest_only_fresh == False and b_data_fresh == True:
-        print("ingest data")
-        ingest_csv(DIR_CSV, l_entities)
         
 
 def proc_journal_info (id_concept) :
@@ -321,13 +433,13 @@ def get_very_related_works (l_seed_journals):
 l_journals_to_dl = [
     # "https://openalex.org/S79803084",
     # "https://openalex.org/S151705444",
-    "https://openalex.org/S33323087",
-    "https://openalex.org/S168572994",
-    "https://openalex.org/S147547362",
-    "https://openalex.org/S2739021930",
-    "https://openalex.org/S3880285",
-    "https://openalex.org/S117778295",
-    "https://openalex.org/S4210172589",
+    # "https://openalex.org/S33323087",
+    # "https://openalex.org/S168572994",
+    # "https://openalex.org/S147547362",
+    # "https://openalex.org/S2739021930",
+    # "https://openalex.org/S3880285",
+    # "https://openalex.org/S117778295",
+    "https://openalex.org/S4210172589", # FIXME
     "https://openalex.org/S20589029",
     "https://openalex.org/S102949365",
     "https://openalex.org/S60559904",
@@ -382,6 +494,7 @@ l_journals_to_dl = [
 
 # proc_journal_works(l_journals_to_dl[1], True)
 
-[proc_journal_works(j, True) for j in l_journals_to_dl]
+[proc_journal_dispatch(j, True) for j in l_journals_to_dl]
 
 
+# proc_journal_longworks("https://openalex.org/S4210172589", True)
