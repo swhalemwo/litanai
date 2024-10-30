@@ -41,7 +41,7 @@ prompt_npo = gs_oai_prompt(
     "factors associated with non-profit closure",
     """you will read a text long which is some way related to non-profit organizations. It very likely is in some way about non-profit organizations closing (or surviving). Your task is to identify every instance where the text talks about factors associated with closings. These can be properties of the non-profit organization itself, the environent it is situated in, or really anything. """)
 
-main_litanai(query_reltext = query_nposurv, query_oai = prompt_npo, proj_name = "npo_surv", head =False)
+litanai(query_reltext = query_nposurv, query_oai = prompt_npo, proj_name = "npo_surv", head =False)
 
 # ** role of individuals
 
@@ -52,7 +52,7 @@ prompt_vid = gs_oai_prompt(
 # Do NOT try to infer individual-level factors from organizational ones, such as organizational age or expenditure; 
 print(prompt_vid)
 
-main_litanai(query_reltext = query_nposurv, prompt_oai = prompt_vid, proj_name = "surv_vid", head = False)
+litanai(query_reltext = query_nposurv, prompt_oai = prompt_vid, proj_name = "surv_vid", head = False)
 
 xx = qry_oai("Fernandez", prompt_vid, dt_rt_npo.iloc[19]['text'])
 xx.to_csv(f"{PROJ_DIR}/res/res_vid_test.csv")
