@@ -5,6 +5,7 @@ import json
 import glob
 
 import clickhouse_connect
+from pyalex import invert_abstract
 
 from globs import DIR_CSV, DIR_JOURNAL_PICKLES
 
