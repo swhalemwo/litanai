@@ -45,7 +45,9 @@ def gd_bibtex() :
         title = entry.get("title").value if "title" in entry.fields_dict.keys() else "N/A"
         year = entry.get("year").value if "year" in entry.fields_dict.keys() else "N/A"
         doi = entry.get("doi").value if "doi" in entry.fields_dict.keys() else "N/A"
-        data.append({'key': entry.key, 'author': author, 'title': title, 'year':year, 'doi' : doi})
+        journal = entry.get("journal").value if "journal" in entry.fields_dict.keys() else "N/A"
+        data.append({'key': entry.key, 'author': author, 'title': title, 'year':year, 'doi' : doi,
+                     'journal': journal})
 
     df_bib = pd.DataFrame(data).replace('N/A', np.nan)
     
