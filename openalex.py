@@ -9,7 +9,7 @@ import pandas as pd
 import pyalex
 from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publishers, Funders, config, invert_abstract
 
-from flatten_openalex_jsonl import flatten_works, init_dict_writer
+from flatten_openalex_jsonl import flatten_works, flatten_sources, init_dict_writer
 
 import clickhouse_connect
 import pickle
@@ -137,16 +137,18 @@ def ingest_csv(DIR_CSV, l_entities) :
 def proc_journal (id_journal) :
     # download (or read), flatten and ingest a data
 
+    # breakpoint()
+
     id_journal_short = id_journal.replace('https://openalex.org/', '')
     print(f"id_journal_short: {id_journal_short}")
     
-    # breakpoint()
-    
+        
     ## get data
     if id_journal_short not in os.listdir(DIR_JOURNAL_PICKLES):
         print("downloading papers")
-        l_papers = gl_journal_papers(id_journal)
+        l_papers = gl_journal_info(id_journal)
         pickle_entity(l_papers, id_journal_short, DIR_JOURNAL_PICKLES)
+        
     else:
         l_papers = pickle_load_entity(id_journal_short, DIR_JOURNAL_PICKLES)
         print(f"retrieved {len(l_papers)} from file")
@@ -162,6 +164,9 @@ def proc_journal (id_journal) :
 
 
 def proc_journal_info (id_concept) :
+
+    # breakpoint() 
+
     id_concept_short = id_concept.replace('https://openalex.org/', '')
     print(f"id_journal_short: {id_concept_short}")
 
@@ -169,9 +174,9 @@ def proc_journal_info (id_concept) :
     if id_concept_short not in os.listdir(DIR_JOURNAL_PICKLES):
         print("downloading journal info")
         l_journals = gl_journal_info(id_concept)
-        pickle_entity(l_journals)
+        pickle_entity(l_journals, id_concept_short, DIR_JOURNAL_PICKLES)
     else:
-        l_journals = pickle_load_entity(id_concept_short)
+        l_journals = pickle_load_entity(id_concept_short, DIR_JOURNAL_PICKLES)
         print(f"retrieved {len(l_journals)} from file")
 
     print("flattening journal info to csv")
@@ -284,4 +289,14 @@ def get_very_related_works (l_seed_journals):
 
 
 
-proc_journal('https://openalex.org/C36289849')
+# proc_journal('https://openalex.org/C36289849')
+
+l_concepts_to_dl = ["C36289849", "C144024400", "c17744445"]
+
+[proc_journal_info(c) for c in l_concepts_to_dl]
+
+# proc_journal_info(l_concepts_to_dl[0])
+# l_journal_info = gl_journal_info("C144024400")
+
+
+

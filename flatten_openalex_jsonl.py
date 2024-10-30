@@ -4,6 +4,8 @@ import gzip
 import json
 import glob
 
+import clickhouse_connect
+
 from globs import DIR_CSV, DIR_JOURNAL_PICKLES
 
 

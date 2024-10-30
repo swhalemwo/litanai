@@ -209,11 +209,31 @@ Sources().filter(type = "journal").count()
 Sources().filter(summary_stats = {'h_index' : 5}).count()
 
 
+# https://docs.google.com/spreadsheets/d/1LBFHjPt4rj_9r0t0TTAlT68NwOtNH8Z21lBMsJDMoZg/edit?gid=575855905#gid=575855905
+
 # sociology: 50k
 Sources().filter(concept = {'id' : 'https://openalex.org/C144024400'}, type = "journal").count()
 
 # social science: 5.7k huh
 Sources().filter(concept = {'id' : 'https://openalex.org/C36289849'}, type = "journal").count()
+
+# polsci
+Sources().filter(concept = {'id' : 'https://openalex.org/c17744445'}, type = "journal").count()
+
+# nonprofit
+https://openalex.org/c2993714901
+
+# 
+https://openalex.org/c2986758647
+
+l_concepts_short = ["c2986758647", "c2993714901", "C144024400", "C36289849", "c17744445"]
+l_concepts = ['https://openalex.org/' + i for i in l_concepts_short]
+
+for c in l_concepts:
+    dname = Concepts()[c].get('display_name')
+    journal_cnt = Sources().filter(concept = {'id' : c}, type = "journal").count()
+    print(f"{dname}:{journal_cnt}")
+
 
 # art history
 Sources().filter(concept = {'id' : 'https://openalex.org/c52119013'}, type = "journal").count()
