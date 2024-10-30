@@ -1,3 +1,11 @@
+import csv
+import os
+import gzip
+import json
+import glob
+
+from globs import DIR_CSV, DIR_JOURNAL_PICKLES
+
 
 # SNAPSHOT_DIR = 'openalex-snapshot'
 # DIR_CSV = 'csv-files'
@@ -138,14 +146,14 @@ def gc_csv_files () :
             'sources': {
                 'name': os.path.join(DIR_CSV, 'sources.csv.gz'),
                 'columns': [
-                    'id', 'issn_l', 'issn', 'display_name', 'publisher',
+                    'id', 'issn_l', 'display_name', 'publisher',
                     'works_count', 'cited_by_count', 'is_oa',
                     'is_in_doaj', 'homepage_url', 'works_api_url', 'updated_date'
                 ]
             },
             'ids': {
                 'name': os.path.join(DIR_CSV, 'sources_ids.csv.gz'),
-                'columns': ['source_id', 'openalex', 'issn_l', 'issn', 'mag',
+                'columns': ['source_id', 'openalex', 'issn_l', 'mag',
                             'wikidata', 'fatcat']
             },
             'counts_by_year': {
@@ -619,64 +627,77 @@ def flatten_publishers():
                 break
 
 
-def flatten_sources():
-    with gzip.open(csv_files['sources']['sources']['name'], 'wt',
-                   encoding='utf-8') as sources_csv, \
-            gzip.open(csv_files['sources']['ids']['name'], 'wt',
-                      encoding='utf-8') as ids_csv, \
-            gzip.open(csv_files['sources']['counts_by_year']['name'], 'wt',
-                      encoding='utf-8') as counts_by_year_csv:
+def flatten_sources(l_sources):
 
-        sources_writer = csv.DictWriter(
-            sources_csv, fieldnames=csv_files['sources']['sources']['columns'],
-            extrasaction='ignore'
-        )
+    csv_files = gc_csv_files()
+    
+    with gzip.open(csv_files['sources']['sources']['name'], 'wt', encoding='utf-8') as sources_csv, \
+         gzip.open(csv_files['sources']['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
+         gzip.open(csv_files['sources']['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv:
+
+        # breakpoint()
+        
+        sources_writer = csv.DictWriter(sources_csv, fieldnames=csv_files['sources']['sources']['columns'],
+                                        extrasaction='ignore')
         sources_writer.writeheader()
 
-        ids_writer = csv.DictWriter(ids_csv,
-                                    fieldnames=csv_files['sources']['ids'][
-                                        'columns'])
+        ids_writer = csv.DictWriter(ids_csv, fieldnames=csv_files['sources']['ids'][ 'columns'])
         ids_writer.writeheader()
 
-        counts_by_year_writer = csv.DictWriter(counts_by_year_csv, fieldnames=
-        csv_files['sources']['counts_by_year']['columns'])
+        counts_by_year_writer = csv.DictWriter(counts_by_year_csv,
+                                               fieldnames= csv_files['sources']['counts_by_year']['columns'])
         counts_by_year_writer.writeheader()
 
+
+        ch_client = clickhouse_connect.get_client(database = "litanai")
+        qry = ch_client.query("select distinct id from sources")
+        seen_source_ids = set(row[0] for row in qry.result_rows)
+        
+
+        ## FIXME: add some CH query here to skip sources already ingested
         seen_source_ids = set()
 
         files_done = 0
-        for jsonl_file_name in glob.glob(
-                os.path.join(SNAPSHOT_DIR, 'data', 'sources', '*', '*.gz')):
-            print(jsonl_file_name)
-            with gzip.open(jsonl_file_name, 'r') as sources_jsonl:
-                for source_json in sources_jsonl:
-                    if not source_json.strip():
-                        continue
+        # for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'sources', '*', '*.gz')):
+        
+            # print(jsonl_file_name)
+            # with gzip.open(jsonl_file_name, 'r') as sources_jsonl:
+        source = l_sources[0]
 
-                    source = json.loads(source_json)
+        for source in l_sources:
+            # if not source_json.strip():
+            #     continue
 
-                    if not (source_id := source.get(
-                            'id')) or source_id in seen_source_ids:
-                        continue
+            # source = json.loads(source_json)
 
-                    seen_source_ids.add(source_id)
+            if not (source_id := source.get('id')) or source_id in seen_source_ids:
+                continue
 
-                    source['issn'] = json.dumps(source.get('issn'))
-                    sources_writer.writerow(source)
+            seen_source_ids.add(source_id)
 
-                    if source_ids := source.get('ids'):
-                        source_ids['source_id'] = source_id
-                        source_ids['issn'] = json.dumps(source_ids.get('issn'))
-                        ids_writer.writerow(source_ids)
+            # source['issn'] = json.dumps(source.get('issn'))
+            if "issn" in list(source.keys()):
+                source.pop('issn')
+                
+            sources_writer.writerow(source)
 
-                    if counts_by_year := source.get('counts_by_year'):
-                        for count_by_year in counts_by_year:
-                            count_by_year['source_id'] = source_id
-                            counts_by_year_writer.writerow(count_by_year)
+            if source_ids := source.get('ids'):
+                source_ids['source_id'] = source_id
 
-            files_done += 1
-            if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
-                break
+                if "issn" in list(source_ids.keys()):
+                    source_ids.pop('issn')
+            
+                # source_ids['issn'] = json.dumps(source_ids.get('issn'))
+                ids_writer.writerow(source_ids)
+
+            if counts_by_year := source.get('counts_by_year'):
+                for count_by_year in counts_by_year:
+                    count_by_year['source_id'] = source_id
+                    counts_by_year_writer.writerow(count_by_year)
+
+            # files_done += 1
+            # if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+            #     break
 
 
 def flatten_works(l_works):

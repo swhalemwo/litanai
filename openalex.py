@@ -3,6 +3,7 @@ import glob
 import gzip
 import json
 import os
+import time
 
 import pandas as pd
 import pyalex
@@ -52,10 +53,38 @@ def gl_journal_papers (journal_id) :
     for page in l_pager:
         print(len(page))
         l_pages.append(page)
-
-        # flatten to single articles
-        l_papers = [x for xs in l_pages.copy() for x in xs]
+    
+    # flatten to single articles
+    l_papers = [x for xs in l_pages.copy() for x in xs]
     return(l_papers)
+
+def gl_journal_info (concept_id):
+
+    # breakpoint()
+
+    l_pager = (Sources().filter(concept = {'id' : concept_id}, type= 'journal')
+               .paginate(per_page = 200, n_max = None))
+
+    nbr_journals = Sources().filter(concept = {'id' : concept_id}, type= 'journal').count()
+
+    l_pages = [] 
+    nbr_journals_dld = 0
+    time_start = time.time()
+
+    
+
+    for page in l_pager:
+        l_pages.append(page)
+        
+        time_dl = time.time()
+        time_passed = round(time_dl - time_start,1)
+        nbr_journals_dld += len(page)
+        perc_dld = round(nbr_journals_dld*100/nbr_journals,1)
+        print(f"{nbr_journals_dld}/{nbr_journals}({perc_dld}%) in {time_passed} secs")
+        
+    l_journals = [x for xs in l_pages.copy() for x in xs]
+    return(l_journals)
+    
 
 
 def gc_ingest_cmd (entity, DIR_CSV):
@@ -127,10 +156,34 @@ def proc_journal (id_journal) :
     
     # FIXME: ingestion should be conditional
     print("ingesting works")
-    ingest_csv(DIR_CSV)
+
+    l_entities = ['works', 'works_related_works', 'works_referenced_works']
+    ingest_csv(DIR_CSV, l_entities)
 
 
-def get_very_related_works ():
+def proc_journal_info (id_concept) :
+    id_concept_short = id_concept.replace('https://openalex.org/', '')
+    print(f"id_journal_short: {id_concept_short}")
+
+    # FIXME: proper paths
+    if id_concept_short not in os.listdir(DIR_JOURNAL_PICKLES):
+        print("downloading journal info")
+        l_journals = gl_journal_info(id_concept)
+        pickle_entity(l_journals)
+    else:
+        l_journals = pickle_load_entity(id_concept_short)
+        print(f"retrieved {len(l_journals)} from file")
+
+    print("flattening journal info to csv")
+    flatten_sources(l_journals)
+
+    print("ingesting journals")
+    l_entities_journals = ["sources", "sources_counts_by_year", 'sources_ids']
+    ingest_csv(DIR_CSV, l_entities_journals)
+
+        
+
+def get_very_related_works (l_seed_journals):
     "get related works, then get their journals later"
 
     # ch_client = clickhouse_connect.get_client(database = "litanai")
