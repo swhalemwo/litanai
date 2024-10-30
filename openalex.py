@@ -11,6 +11,9 @@ from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publ
 
 from flatten_openalex_jsonl import flatten_works, flatten_sources, init_dict_writer
 
+from litanai import gd_bibtex
+
+
 import clickhouse_connect
 import pickle
 import subprocess
@@ -39,7 +42,7 @@ config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
 
-def gl_journal_papers (journal_id) :
+def gl_journal_works (journal_id) :
     
     # get pager to iterate on
     l_pager = Works().filter(
@@ -134,8 +137,8 @@ def ingest_csv(DIR_CSV, l_entities) :
 
 
 
-def proc_journal (id_journal) :
-    # download (or read), flatten and ingest a data
+def proc_journal_works (id_journal, ingest_only_fresh) :
+    # download (or read), flatten and ingest a set of works from a journal
 
     # breakpoint()
 
@@ -146,22 +149,38 @@ def proc_journal (id_journal) :
     ## get data
     if id_journal_short not in os.listdir(DIR_JOURNAL_PICKLES):
         print("downloading papers")
-        l_papers = gl_journal_info(id_journal)
+        l_papers = gl_journal_works(id_journal)
         pickle_entity(l_papers, id_journal_short, DIR_JOURNAL_PICKLES)
+        b_data_fresh = True
         
     else:
         l_papers = pickle_load_entity(id_journal_short, DIR_JOURNAL_PICKLES)
         print(f"retrieved {len(l_papers)} from file")
+        b_data_fresh = False
     
     print("flattening papers to csv")
     flatten_works(l_papers)
     
     # FIXME: ingestion should be conditional
-    print("ingesting works")
+    
 
     l_entities = ['works', 'works_related_works', 'works_referenced_works']
-    ingest_csv(DIR_CSV, l_entities)
+    
+    if ingest_only_fresh == True and b_data_fresh == True:
+        print("ingesting works")
+        ingest_csv(DIR_CSV, l_entities)
 
+    if ingest_only_fresh == False and b_data_fresh == False:
+        print("skip ingesting (despite data not fresh)")
+        ingest_csv(DIR_CSV, l_entities)
+
+    if ingest_only_fresh == True and b_data_fresh == False:
+        print("skip ingesting (data not fresh)")
+
+    if ingest_only_fresh == False and b_data_fresh == True:
+        print("ingest data")
+        ingest_csv(DIR_CSV, l_entities)
+        
 
 def proc_journal_info (id_concept) :
 
@@ -291,12 +310,78 @@ def get_very_related_works (l_seed_journals):
 
 # proc_journal('https://openalex.org/C36289849')
 
-l_concepts_to_dl = ["C36289849", "C144024400", "c17744445"]
+# l_concepts_to_dl = ["C36289849", "C144024400", "c17744445"]
 
-[proc_journal_info(c) for c in l_concepts_to_dl]
+# [proc_journal_info(c) for c in l_concepts_to_dl]
 
 # proc_journal_info(l_concepts_to_dl[0])
 # l_journal_info = gl_journal_info("C144024400")
 
+
+l_journals_to_dl = [
+    # "https://openalex.org/S79803084",
+    # "https://openalex.org/S151705444",
+    "https://openalex.org/S33323087",
+    "https://openalex.org/S168572994",
+    "https://openalex.org/S147547362",
+    "https://openalex.org/S2739021930",
+    "https://openalex.org/S3880285",
+    "https://openalex.org/S117778295",
+    "https://openalex.org/S4210172589",
+    "https://openalex.org/S20589029",
+    "https://openalex.org/S102949365",
+    "https://openalex.org/S60559904",
+    "https://openalex.org/S16647404",
+    "https://openalex.org/S143967217",
+    "https://openalex.org/S193359815",
+    "https://openalex.org/S13629841",
+    "https://openalex.org/S202381698",
+    "https://openalex.org/S4210198833",
+    "https://openalex.org/S181098927",
+    "https://openalex.org/S28882882",
+    "https://openalex.org/S9536269",
+    "https://openalex.org/S186480540",
+    "https://openalex.org/S192814187",
+    "https://openalex.org/S31062579",
+    "https://openalex.org/S16663008",
+    "https://openalex.org/S17882476",
+    "https://openalex.org/S25250876",
+    "https://openalex.org/S145507837",
+    "https://openalex.org/S2764360065",
+    "https://openalex.org/S148561398",
+    "https://openalex.org/S106069630",
+    "https://openalex.org/S70010600",
+    "https://openalex.org/S87745625",
+    "https://openalex.org/S80347152",
+    "https://openalex.org/S37623806",
+    "https://openalex.org/S23246025",
+    "https://openalex.org/S26186134",
+    "https://openalex.org/S114265899",
+    "https://openalex.org/S77764115",
+    "https://openalex.org/S2875300",
+    "https://openalex.org/S77333486",
+    "https://openalex.org/S64122990",
+    "https://openalex.org/S44404461",
+    "https://openalex.org/S125754415",
+    "https://openalex.org/S58854535",
+    "https://openalex.org/S4210170888",
+    "https://openalex.org/S131591925",
+    "https://openalex.org/S2764533491",
+    "https://openalex.org/S11394615",
+    "https://openalex.org/S181883320",
+    "https://openalex.org/S176007004",
+    "https://openalex.org/S111155417",
+    "https://openalex.org/S96629499",
+    "https://openalex.org/S10063912",
+    "https://openalex.org/S4210213280",
+    "https://openalex.org/S10591207",
+    "https://openalex.org/S164593530",
+    "https://openalex.org/S44753038",
+    "https://openalex.org/S137773608",
+    "https://openalex.org/S70709366"]
+
+# proc_journal_works(l_journals_to_dl[1], True)
+
+[proc_journal_works(j, True) for j in l_journals_to_dl]
 
 

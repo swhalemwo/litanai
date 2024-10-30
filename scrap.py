@@ -245,3 +245,59 @@ l_entities_journals = ["sources", "sources_counts_by_year", 'sources_ids']
 ingest_csv(DIR_CSV, l_entities_journals)
 
 # len(l_journals)
+
+# * get my journals
+
+dt_bibtex = gd_bibtex()
+
+dt_bibtex_res = (dt_bibtex[dt_bibtex['journal'].notna()]
+ .groupby('journal').size().reset_index(name='count')
+ .sort_values(by='count', ascending = False)
+                 .query('count > 2'))
+
+# search journal_id for each journal in dt_bibtex, and put journal_id in new column journal_id
+# return missing value if journal not found
+
+def search_source_from_name (name):
+    l_res = Sources().search(name).get()
+    if len(l_res) > 0:
+        return l_res[0]['id']
+    else:
+        return None
+
+
+dt_bibtex_res['journal_id'] = (dt_bibtex_res['journal'].apply(lambda x: search_source_from_name(x)))
+
+
+l_res = Sources().search("European Journal of Cultural Studies").get()
+
+t_works = Table('works', metadata, autoload_with = engine)
+
+qry = (select(t_works.c.source_id, func.count(t_works.c.source_id).label('cnt')
+        ).group_by(t_works.c.source_id))
+
+dt_works_db = pd.read_sql(qry, engine)
+
+dt_works_db.to_string()
+
+
+print(dt_works_db)
+
+# remove all sources from dt_bibtex that are already in dt_works_db
+
+# also filter out all entries where journal_id is None
+dt_bibtex_res2 = (dt_bibtex_res[~dt_bibtex_res['journal_id'].isin(dt_works_db['source_id'])]
+                  .query('journal_id.notna()'))
+
+# print all the journal_ids from dt_bibtex_res2
+
+
+pd.set_option('display.max_rows', None)  # Display all rows
+dt_bibtex_res2['journal_id']
+pd.reset_option('display.max_rows')
+
+
+
+
+
+
