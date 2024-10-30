@@ -20,18 +20,14 @@ from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, typ
 from requests import Session
 
 
-uri = 'clickhouse://default:@localhost/litanai'
+from globs import DIR_CSV, DIR_JOURNAL_PICKLES
+
 uri = 'clickhouse+native://localhost/litanai'
 engine = create_engine(uri)
 session = make_session(engine)
 metadata = MetaData()
 
 metadata.reflect(bind=engine)
-# metadata.tables.keys()
-
-DIR_CSV = '/home/johannes/Dropbox/proj/litanai/oa_csv_files/'
-DIR_JOURNAL_PICKLES = "/run/media/johannes/data/litanai/journals/"
-
 
 
 
