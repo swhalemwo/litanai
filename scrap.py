@@ -330,5 +330,10 @@ Sources().["https://openalex.org/S4210172589"].
 
 
 
+# * testing saving as json rather than csv, but that's even bigger
 
+DIR_ENTITIES_JSON = "/run/media/johannes/data/litanai/entities_json"
+
+with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id), 'w') as fx:
+    json.dump(l_longworks, fx)
 
