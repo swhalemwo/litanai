@@ -19,7 +19,7 @@ import pickle
 import subprocess
 
 
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, MetaData, create_engine, text, select, tuple_, func, desc
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, MetaData, create_engine, text, select, tuple_, func, desc, or_, and_, cast, Numeric, distinct
 from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, types, engines
 from requests import Session
 
@@ -500,5 +500,5 @@ l_seed_journals = ['https://openalex.org/S31225034', 'https://openalex.org/s9835
 
 # [proc_journal_dispatch(j['id'], "only_fresh") for j in l_journals_to_dl]
 
-proc_journal_dispatch('https://openalex.org/S4306463937', "only_fresh")
+# proc_journal_dispatch('https://openalex.org/S4306463937', "only_fresh")
 

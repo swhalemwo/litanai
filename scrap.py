@@ -337,3 +337,90 @@ DIR_ENTITIES_JSON = "/run/media/johannes/data/litanai/entities_json"
 with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id), 'w') as fx:
     json.dump(l_longworks, fx)
 
+# * search
+
+l_search = Works().search("The Blackwell Companion to Organization").get()
+
+l_search = Works().search("Interorganizational Cognition and Interpretation").get()
+len(l_search)
+[print(i['display_name']) for i in l_search]
+l_search[0]['id']
+
+# * query testing for works
+
+DIR_RES = "/run/media/johannes/data/litanai/results/"
+
+# get all works related to artist careers
+
+t_works = Table('works', metadata, autoload_with = engine)
+t_sources = Table('sources', metadata, autoload_with = engine)
+
+search_strings_career = ['career', 'life-course' 'lifecourse']
+search_strings_subject = ['artist', 'musician', 'poet', 'painter']
+search_strings_outcome = ['recogni', 'reputation', 'consecrat', 'canoniz']
+
+
+career_conditions = [t_works.c.abstract_text.like(f'%{s}%') for s in search_strings_career]
+subject_conditions = [t_works.c.abstract_text.like(f'%{s}%') for s in search_strings_subject]
+outcome_conditions= [t_works.c.abstract_text.like(f'%{s}%') for s in search_strings_outcome]
+
+col_lens = [((func.length(t_works.c.abstract_text) - func.length(func.replace(t_works.c.abstract_text, s, '')))
+                / cast(len(s), Numeric(10,4))).label(f"cnt_{s}")
+            for s in search_strings_subject + search_strings_outcome + search_strings_career]
+
+
+qry = select(t_works.c.id, t_works.c.display_name, t_works.c.source_id, t_works.c.abstract_text, *col_lens).where(
+    and_(
+        func.length(t_works.c.abstract_text) > 10,
+        or_(*career_conditions),
+        or_(*subject_conditions),
+        or_(*outcome_conditions))).subquery()
+
+pd.read_sql(select(func.count(qry.c.id)), engine)
+
+dt_careers = pd.read_sql(select(qry), engine)
+
+
+pd.read_sql(select(qry).limit(100), engine).to_csv(DIR_RES + "artist_careers.csv")
+
+# FIXME 1: yeet duplicate journals
+# FIXME 2: make sure all works have source with 
+qry_jrnl = (select(qry.c.id, t_sources.c.display_name, t_sources.c.id.label('source_id'))
+            .join(t_sources, qry.c.source_id == t_sources.c.id)).subquery()
+
+# group by journal
+qry_jrnl_cnt = (select(
+    qry_jrnl.c.display_name,
+    qry_jrnl.c.source_id,
+    func.count(qry_jrnl.c.source_id))
+                .group_by(qry_jrnl.c.source_id)
+                .order_by(desc(func.count(qry_jrnl.c.id))))
+
+pd.read_sql(qry_jrnl_cnt, engine)
+
+pd.read_sql(select(qry_jrnl), engine)
+pd.read_sql(select(distinct(qry.c.id)), engine)
+            
+
+
+
+pd.read_sql(qry, engine)
+
+
+    
+qry = select(
+    t_works.c.id,
+    t_works.c.display_name,
+    t_works.c.abstract_text,
+    *[(func.length(t_works.c.abstract_text) - func.length(func.replace(t_works.c.abstract_text, s, ''))) / 
+      func.length(s).cast(Float64).label(f"subject_count_{s}") 
+      for s in search_strings_subject],
+    *[(func.length(t_works.c.abstract_text) - func.length(func.replace(t_works.c.abstract_text, o, ''))) / 
+      func.length(o).cast(Float64).label(f"outcome_count_{o}") 
+      for o in search_strings_outcome]
+).where(
+    and_(
+        or_(*subject_conditions),
+        or_(*outcome_conditions)
+    )
+).subquery()
