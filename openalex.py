@@ -398,8 +398,9 @@ def get_very_related_works (l_seed_journals):
     l_journals = list({j['id']:j for j in l_journals_prep}.values())
 
     # only get journals with less than 75k articles
-    l_journals = [j for j in l_journals if Works().filter(primary_location=
-                                                          {"source": {"id" :j['id']}}).count() < 200000]
+    # l_journals = [j for j in l_journals if Works().filter(primary_location=
+    #                                                       {"source": {"id" :j['id']}}).count() < 200000]
+
     
     
     l_journalnames = [j['display_name'] for j in l_journals]
@@ -407,12 +408,6 @@ def get_very_related_works (l_seed_journals):
     print(len(l_journalnames))
 
     return(l_journals)
-
-# l_seed_journals = ['https://openalex.org/S31225034', 'https://openalex.org/s98355519',
-#                    'https://openalex.org/s157620343']
-
-    
-# l_journals_to_dl = get_very_related_works(l_seed_journals)
 
 
 
@@ -492,7 +487,18 @@ l_journals_to_dl = [
 
 # proc_journal_works(l_journals_to_dl[1], True)
 
-[proc_journal_dispatch(j, True) for j in l_journals_to_dl]
+# [proc_journal_dispatch(j, True) for j in l_journals_to_dl]
 
 
 # proc_journal_longworks("https://openalex.org/S4210172589", True)
+
+l_seed_journals = ['https://openalex.org/S31225034', 'https://openalex.org/s98355519',
+                   'https://openalex.org/s157620343']
+
+    
+# l_journals_to_dl = get_very_related_works(l_seed_journals)
+
+# [proc_journal_dispatch(j['id'], "only_fresh") for j in l_journals_to_dl]
+
+proc_journal_dispatch('https://openalex.org/S4306463937', "only_fresh")
+
