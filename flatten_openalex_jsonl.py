@@ -917,7 +917,7 @@ def flatten_works(l_works):
             files_done += 1
             # if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
             #     break
-            if files_done % 50 == 0: print(files_done)
+            if files_done % 500 == 0: print(files_done)
 
 
 def init_dict_writer(csv_file, file_spec, **kwargs):

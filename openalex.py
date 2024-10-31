@@ -83,7 +83,7 @@ def gl_journal_longworks(journal_id, year):
 
     return(l_longworks)
 
-def proc_journal_longworks (journal_id, ingest_only_fresh):
+def proc_journal_longworks (journal_id, switch_ingest):
     
     # breakpoint()
     id_journal_short = journal_id.replace('https://openalex.org/', '')
@@ -115,13 +115,9 @@ def proc_journal_longworks (journal_id, ingest_only_fresh):
             print(f"retrieved {len(l_longworks)} from file")
             b_data_fresh = False
 
-            
-        print("flattening papers to csv")
-        flatten_works(l_longworks)
-        l_entities = ['works', 'works_related_works', 'works_referenced_works']
+        l_entities_to_ingest = ['works', 'works_related_works', 'works_referenced_works']
         
-        
-        ingest_dispatcher(l_entities, ingest_only_fresh, b_data_fresh)
+        ingest_dispatcher(l_longworks, l_entities_to_ingest, switch_ingest, b_data_fresh)
 
         if len(l_longworks) == 0:
             year_skipped_in_row += 1
@@ -232,38 +228,42 @@ def ingest_csv(DIR_CSV, l_entities) :
        # [os.remove(DIR_CSV + file) for file in os.listdir(DIR_CSV)]
 
 
-def ingest_dispatcher(l_entities, ingest_only_fresh, b_data_fresh):
-    "ingest depending on switches"
+def ingest_dispatcher(l_entities, l_entities_to_ingest, switch_ingest, b_data_fresh):
+    "flatten and ingest depending on switches"
 
-    if ingest_only_fresh == True and b_data_fresh == True:
-        print("ingesting works")
-        ingest_csv(DIR_CSV, l_entities)
-
-    if ingest_only_fresh == False and b_data_fresh == False:
-        print("skip ingesting (despite data not fresh)")
-        ingest_csv(DIR_CSV, l_entities)
-
-    if ingest_only_fresh == True and b_data_fresh == False:
-        print("skip ingesting (data not fresh)")
-
-    if ingest_only_fresh == False and b_data_fresh == True:
-        print("ingest data")
-        ingest_csv(DIR_CSV, l_entities)
+    if switch_ingest == "only_fresh" and b_data_fresh == True:
+        print("flattening papers to csv")
+        flatten_works(l_entities)
     
+        print("ingesting works")
+        ingest_csv(DIR_CSV, l_entities_to_ingest)
 
-def proc_journal_dispatch(journal_id, ingest_only_fresh):
+    if switch_ingest == "only_fresh" and b_data_fresh == False:
+        print("skip flattening and ingesting")
+        # ingest_csv(DIR_CSV, l_entities_to_ingest)
+
+    if switch_ingest == "always":
+        
+        print("flattening papers to csv")
+        flatten_works(l_entities)
+        print("ingesting works")
+        ingest_csv(DIR_CSV, l_entities_to_ingest)
+
+
+
+def proc_journal_dispatch(journal_id, switch_ingest):
     "decide whether to download all works in one swoop or by year"
 
     nbr_papers = Works().filter(primary_location= {"source": {"id" :journal_id}}).count()
 
     if nbr_papers > 100000:
-        proc_journal_longworks(journal_id, ingest_only_fresh)
+        proc_journal_longworks(journal_id, switch_ingest)
     else:
-        proc_journal_works(journal_id, ingest_only_fresh)
+        proc_journal_works(journal_id, switch_ingest)
         
 
 
-def proc_journal_works (id_journal, ingest_only_fresh) :
+def proc_journal_works (id_journal, switch_ingest) :
     # download (or read), flatten and ingest a set of works from a journal
 
     # breakpoint()
@@ -284,13 +284,11 @@ def proc_journal_works (id_journal, ingest_only_fresh) :
         print(f"retrieved {len(l_papers)} from file")
         b_data_fresh = False
     
-    print("flattening papers to csv")
-    flatten_works(l_papers)
     
     # FIXME: ingestion should be conditional
     
-    l_entities = ['works', 'works_related_works', 'works_referenced_works']
-    ingest_dispatcher(l_entities, ingest_only_fresh, b_data_fresh)
+    l_entities_to_ingest = ['works', 'works_related_works', 'works_referenced_works']
+    ingest_dispatcher(l_papers, l_entities_to_ingest, switch_ingest, b_data_fresh)
     
         
 
