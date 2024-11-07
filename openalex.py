@@ -4,6 +4,7 @@ import gzip
 import json
 import os
 import time
+import pdb
 
 import pandas as pd
 import pyalex
@@ -42,6 +43,22 @@ config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
 
 
+
+def debugger_is_active() -> bool:
+    """Return if the debugger is currently active"""
+    return hasattr(sys, 'gettrace') and sys.gettrace() is not None
+
+
+def lmap (fun, iterable):
+    return (list(map(fun, iterable)))
+
+def flatten_list (list_of_lists):
+    return([x for xs in list_of_lists for x in xs])
+
+def split_list (list_ts, max_sublist_len):
+    return[list_ts[i:i + max_sublist_len] for i in range(0, len(list_ts), max_sublist_len)]
+
+
 def dl_pages (pager, nbr_entities):
     "download pages of pager"
 
@@ -59,7 +76,8 @@ def dl_pages (pager, nbr_entities):
         perc_dld = round(nbr_entities_dld*100/nbr_entities,1)
         print(f"{nbr_entities_dld}/{nbr_entities} ({perc_dld}%) in {time_passed} secs")
 
-    l_entities = [x for xs in l_pages.copy() for x in xs]
+    # l_entities = [x for xs in l_pages.copy() for x in xs]
+    l_entities = flatten_list(l_pages.copy())
 
     return(l_entities)
 
@@ -135,23 +153,25 @@ def proc_journal_longworks (journal_id, switch_ingest):
 def gl_journal_works (journal_id) :
     
 
-    nbr_papers = Works().filter(primary_location= {"source": {"id" :journal_id}}).count()
-    print(f"nbr_papers: {nbr_papers}")
+    nbr_works = Works().filter(primary_location= {"source": {"id" :journal_id}}).count()
+    print(f"nbr_works: {nbr_works}")
 
     l_pager = Works().filter(
         primary_location= {"source": {"id" :journal_id}}).paginate(per_page=200, n_max = None)
 
     # download all the pages
-    l_pages = []
-    for page in l_pager:
-        print(len(page))
-        l_pages.append(page)
+    # l_pages = []
+    # for page in l_pager:
+    #     print(len(page))
+    #     l_pages.append(page)
 
-    # flatten to single articles
-    l_papers = [x for xs in l_pages.copy() for x in xs]
+    if nbr_works == 0:
+        l_works = []
 
-            
-    return(l_papers)
+    else:
+        l_works = dl_pages(l_pager, nbr_works)
+
+    return(l_works)
 
 def gl_journal_info (concept_id):
 
