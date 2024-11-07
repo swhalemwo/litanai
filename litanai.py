@@ -14,6 +14,7 @@ import polars as pl
 import pyarrow
 import json
 import tiktoken
+import re
 
 def get_secret(secret):
     return(
@@ -47,7 +48,7 @@ def gd_bibtex() :
         doi = entry.get("doi").value if "doi" in entry.fields_dict.keys() else "N/A"
         journal = entry.get("journal").value if "journal" in entry.fields_dict.keys() else "N/A"
         data.append({'key': entry.key, 'author': author, 'title': title, 'year':year, 'doi' : doi,
-                     'journal': journal})
+                     'journal': re.sub(r'\s+', ' ', journal)})
 
     df_bib = pd.DataFrame(data).replace('N/A', np.nan)
     

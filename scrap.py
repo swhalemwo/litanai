@@ -312,7 +312,6 @@ qry1 = (select(t_works.c.source_id, func.count(t_works.c.source_id).label('cnt')
 
 qry2 = (select (qry1.c.source_id, t_sources.c.display_name, qry1.c.cnt)
         .join(t_sources, qry1.c.source_id == t_sources.c.id).distinct()).subquery()
-
 .join(t_sources, t_works.c.source_id == t_sources.c.id))
 
 # see which entries are in qry1 but not in qry2
@@ -424,3 +423,435 @@ qry = select(
         or_(*outcome_conditions)
     )
 ).subquery()
+
+# * explore more works info
+
+w = Works()["W3128349626"]
+w = Works()['W2067091741']
+
+l_search = Works().search("Interorganizational Cognition and Interpretation").get()
+w = l_search[0]
+
+w.keys()
+
+
+nested_dict = {
+    'key': {
+        'keyb': [1, 2, 3],
+        'keyc': {
+            'keyd': 'value',
+            'keye': [1.0, 2.0]
+        }
+    },
+    'keyf': 42,
+    'keyg': True
+}
+
+print_dict_structure(nested_dict)
+
+print_dict_structure(w)
+
+wt = w['topics']
+
+flatten_works([wt])
+
+wc = w['concepts']
+            
+
+# * get similar journals
+
+
+dt_bibtex = gd_bibtex()
+
+dt_bibtex_res = (dt_bibtex[dt_bibtex['journal'].notna()]
+                 .groupby('journal').size().reset_index(name='count'))
+ 
+
+
+
+# bibtex to write to clickhouse (toch)
+dt_bibtex_res_toch = dt_bibtex_res[dt_bibtex_res['journal_id'].notna()]
+
+
+
+
+# for some reson specifying this breaks ibis
+# tbl = ibis.table(name = "temp_bib2", database = "litanai",
+#                  schema = {'journal' : 'string', 'count' : 'int32'})
+# database = 'litanai',
+# engine = 'MergeTree', order_by = 'journal')
+
+
+
+ch_client = clickhouse_connect.get_client(database = "litanai")
+
+create_table_query = '''
+CREATE TABLE temp_bibtex_res (
+    journal String,
+    count UInt32,
+    journal_id String
+) ENGINE = MergeTree() ORDER BY journal_id
+'''
+
+# Execute the create table query
+ch_client.query(create_table_query)
+
+ch_client.insert_df("temp_bibtex_res", dt_bibtex_res_toch)
+
+t_bibtex = Table('temp_bibtex_res', metadata, autoload_with = engine)
+t_sources = Table('sources', metadata, autoload_with = engine)
+t_st = Table('sources_topics', metadata, autoload_with = engine)
+
+# get my topics (mt)
+qry_mt = (select(t_st.c.topic_id, t_st.c.source_id, t_st.c.topic_count, t_st.c.topic_prop)
+          .join(t_bibtex, t_bibtex.c.journal_id == t_st.c.source_id)
+          .where(t_st.c.topic_prop < 0.8)).subquery()
+
+pd.read_sql(select(qry_mt), engine)
+dtx = pd.read_sql(select(qry_mt), engine)
+print(qry_mt.compile(compile_kwargs={"literal_binds": True}))
+
+
+# get my topics, gropued (mtg)
+qry_mtg = (select(qry_mt.c.topic_id, func.avg(qry_mt.c.topic_prop).label('prop_avg'))
+                     .group_by(qry_mt.c.topic_id)
+           .order_by(desc(func.sum(qry_mt.c.topic_prop)))).subquery()
+
+# get all journals that mention my topics, and get the difference in topic proportion
+qd = (select(t_st.c.topic_id, t_st.c.source_id, t_st.c.topic_prop, qry_mtg.c.prop_avg,
+             func.abs(t_st.c.topic_prop - qry_mtg.c.prop_avg).label('prop_diff'))
+      .where(t_st.c.topic_prop < 0.8)
+      .join(qry_mtg, t_st.c.topic_id == qry_mtg.c.topic_id)).subquery()
+
+
+
+# summarize journals, get top ones
+qj = (select(qd.c.source_id, func.avg(qd.c.prop_diff).label('sum_diff'),
+       func.count(qd.c.source_id).label('n_topics')).group_by(qd.c.source_id)
+      .order_by(func.avg(qd.c.prop_diff))).subquery()
+
+pd.read_sql(select(func.count(qj.c.source_id)), engine)
+
+# get final query: yeet the journals that are already in the database
+qf = select(qj).where(qj.c.source_id.notin_(select(distinct(t_works.c.source_id)))).subquery()
+
+# get the final results with journal names
+qfn = select(qf, t_sources.c.display_name, t_sources.c.works_count).join(t_sources, qf.c.source_id == t_sources.c.id).subquery()
+
+pd.read_sql(select(func.count(qj.c.source_id)), engine)
+pd.read_sql(select(func.count(qfn.c.source_id)), engine)
+pd.read_sql(select(qf).where(qf.c.n_topics > 5).limit(100), engine)
+
+pd.set_option('display.max_rows', None)  # Display all rows
+pd.read_sql(select(qfn).where(qfn.c.n_topics > 5).limit(100), engine)
+pd.reset_option('display.max_rows')
+
+
+# oof these have like nothing to do with my topics -> rather get the rest of my journals
+
+
+dt_bibtex_res2['journal_id']
+
+
+sx = Sources()['S10441410']
+
+
+t_works
+
+
+
+# next: use the journal ids to get topics and then similar journals
+# * use ngram distance 
+
+dt_bibtex = gd_bibtex()
+
+dt_bibtex_res = (dt_bibtex[dt_bibtex['journal'].notna()]
+ .groupby('journal').size().reset_index(name='count')
+ .sort_values(by='count', ascending = False))
+
+dt_works_there = pd.read_sql(select(distinct(t_works.c.source_id), t_sources.c.display_name)
+                             .group_by(t_works.c.source_id)
+                             .join(t_sources, t_works.c.source_id == t_sources.c.id), engine)
+
+                             
+
+
+
+# * prql
+
+ch_client.query("set dialect = 'clickhouse'")
+pd.read_sql("select count(*) from works", engine)
+
+
+
+ch_client = clickhouse_connect.get_client(database = "litanai")
+ch_client.command("set dialect = 'prql'")
+
+pd.read_sql("""
+from sources_topics
+select topic_id 
+take 10""", engine)
+
+pd.read_sql("""
+from works
+select display_name
+take 10;""", engine)
+
+ch_client.query_df("""
+from sources_topics
+take 10
+""")
+
+ch_client.query("""
+from sources_topics
+aggregate
+{ct = count source_id}
+""")
+
+
+from clickhouse_driver import Client
+client = Client(host = 'localhost', database = 'litanai')
+client.execute("show tables")
+
+client.execute("set dialect = 'prql'")
+
+cmd = """from sources_topics
+select topic_id
+take 10"""
+
+select display_name
+take 10
+
+from sources
+select display_name
+take 10
+
+from sources
+aggregate {
+    ct = count sources_id}
+
+select count(*)
+
+
+client.execute(cmd)
+
+
+
+cmd = """from sources_topics
+aggregate {
+ct = count source_id}"""
+
+client.execute("from sources_topics select topic_id take 10")
+
+
+ch_client.query("from sources")
+
+# * ibis
+
+
+import ibis
+from ibis import desc, _
+ibis.options.interactive = True
+ibis.options.interactive = False
+
+
+con = ibis.connect('clickhouse://localhost/litanai')
+tsrc = con.table('sources')
+tbib = con.table('temp_bibtex_res')
+tst = con.table('sources_topics')
+
+# (tsrc.filter(tsrc.display_name == 'American Sociological Review')
+#  .select('id', 'display_name'))
+
+qx = (tst.select('topic_id', 'source_id', 'topic_count', 'topic_prop')
+        .inner_join(tbib, tst.source_id == tbib.journal_id)
+        .filter(tst.topic_prop < 0.8)
+        .order_by(tst.topic_count.desc()))
+
+qy = (qryx.group_by('topic_id')
+      .aggregate(prop_avg = qryx.topic_prop.mean())
+      .order_by(_.prop_avg.desc()))
+
+qz = (qy.inner_join(tst.filter(tst.topic_prop < 0.8), "topic_id")
+      .mutate(prop_diff = tst.topic_prop - qy.prop_avg).
+      select('topic_id', 'source_id', 'topic_prop', 'prop_avg', 'prop_diff'))
+
+
+(qz.group_by('source_id')
+ .aggregate(sum_diff = qz.prop_diff.mean(), n_topics = qz.source_id.count())
+ .order_by(ibis.desc('sum_diff'))).count()
+
+print(ibis.to_sql(qz))
+
+# combine to one query with chaining -> nice
+
+qry = (tst.select('topic_id', 'source_id', 'topic_count', 'topic_prop')
+ .inner_join(tbib, _.source_id == tbib.journal_id)
+ .filter(_.topic_prop < 0.8)
+ .group_by('topic_id')
+ .aggregate(prop_avg = _.topic_prop.mean())
+ .inner_join(tst.filter(_.topic_prop < 0.8), "topic_id")
+ .mutate(prop_diff = (_.topic_prop - _.prop_avg).abs())
+ .group_by('source_id')
+ .aggregate(sum_diff = _.prop_diff.mean(), n_topics = _.source_id.count())
+ .order_by(ibis.asc('sum_diff'))
+ .left_join(tsrc.select('id', 'display_name'), _.source_id == tsrc.id))
+
+
+
+dtx2 = (tst.select('topic_id', 'source_id', 'topic_count', 'topic_prop')
+ .inner_join(tbib, tst.source_id == tbib.journal_id)
+ # .order_by(tst.topic_count.desc())
+ .filter(tst.topic_prop < 0.8)).to_pandas()
+
+print(ibis.to_sql(qry))
+
+
+
+
+# ** match rest of my journals
+dt_bibtex = gd_bibtex()
+
+dt_bibtex_res = (dt_bibtex[dt_bibtex['journal'].notna()]
+                 .groupby('journal').size().reset_index(name='count_occ'))
+
+
+con.drop_table("bib2")
+con.create_table(name = "bib2", schema = ibis.schema({'journal' : 'string', 'count_occ' : 'int'}))
+
+con.insert('bib2', dt_bibtex_res)
+
+tbib2 = con.table('bib2')
+
+
+tbib2
+tsrc.select('id', 'display_name')
+
+@ibis.udf.scalar.builtin(name="jaro_winkler_similarity")
+def jw_sim(a: str, b: str) -> float:
+   ...
+
+@ibis.udf.scalar.builtin(name="ngramDistanceCaseInsensitive")
+def ngdci(a: str, b:str) -> float:
+    ...
+
+
+
+tcross = (tbib2.cross_join(tsrc.select('id', 'display_name'))
+          .mutate(sim = ngdci(_.journal, _.display_name)))
+
+tminsim = (tcross.group_by('journal')
+           .aggregate(min_sim = _.sim.min()))
+
+# data.table with journals
+
+# huh ok can use duckdb for local tables
+conduck = ibis.connect("duckdb://")
+
+dtj = conduck.create_table('dtj',
+    tcross.inner_join(
+        tminsim,
+        [tcross.journal == tminsim.journal, tcross.sim == tminsim.min_sim]).to_pandas(), overwrite = True)
+
+
+# existing journals
+tw = con.table('works')
+
+dt_xj = conduck.create_table(
+    'dt_xj',
+    tw.group_by('source_id').aggregate(cnt = _.source_id.count()).to_pandas(),
+    overwrite = True)
+
+ds = (dtj.anti_join(dt_xj, dtj.id == dt_xj.source_id)
+      .filter(_.min_sim < 0.1)
+      .order_by(desc('count_occ'))
+      .filter(_.journal != "BMJ")).execute()
+
+
+# get list of journal ids
+l_jids = ds['id'].to_list()
+
+l_jids_oa = [l_jids[i:i + 25] for i in range(0, len(l_jids), 25)]
+
+l_source_info = lmap(lambda x: Sources()[x], l_jids_oa)
+
+l_source_info_flat = flatten_list(l_source_info)
+
+d_s_more = pd.DataFrame(lmap(lambda x: {'source_id' : x['id'],
+                             'works_count' : x['works_count'],
+                             'display_name' :x['display_name']},
+                  l_source_info_flat))
+
+d_s_more['works_count'].sum()
+
+len(set(d_s_more['source_id']) - set(dt_xj.to_pandas()['source_id']))
+len(set(d_s_more['source_id']))
+
+d_s_more.iloc[285]
+split_list(list(d_s_more['source_id']),3)
+
+
+
+
+# TODO: download all these, should take ~1.5 hours
+ 
+
+
+# ** get journals that have topics of my journals, order by works_count/cited_by_count
+
+tcross2 = (tbib2.filter(_.count_occ > 5)
+ .cross_join(tsrc.select('id', 'display_name'))
+ .mutate(sim = ngdci(_.journal, _.display_name)))
+
+tcross2_min = (tcross2.group_by(_.journal)
+               .aggregate(minsim = _.sim.min())
+               .filter(_.minsim < 0.1))
+
+# get the journals i read most
+tmyj = (tcross2.inner_join(
+    tcross2_min,
+    [tcross2.journal == tcross2_min.journal, tcross2.sim == tcross2_min.minsim])
+        .select('journal', 'count_occ', 'id', 'display_name'))
+
+
+con.create_table("bib_myj", schema = tmyj.schema(), overwrite = True)
+con.insert('bib_myj', tmyj)
+
+tmyj = con.table('bib_myj')
+tst = con.table('sources_topics')
+
+t_tpcs = (tst.inner_join(tmyj, tst.source_id == tmyj.id)
+ .group_by(_.topic_id)
+ .aggregate(topic_count = _.topic_count.sum(), topic_prop = _.topic_prop.mean())
+ .filter(_.topic_count > 100))
+
+t_tpcs.
+
+
+
+
+
+
+
+
+
+# ** check that ibis can use multiple threads -> yes it can
+con_mus = ibis.connect('clickhouse://localhost/music')
+tlogs = con_mus.table('logs')
+
+(tlogs.filter(_.time_d < '2007-01-01')
+ .group_by('usr', 'song')
+ .aggregate(cnd = _.usr.count())
+ .order_by('usr', 'song'))
+
+
+SELECT
+    usr,
+    song,
+    count(*) AS cnt
+FROM logs
+WHERE time_d < '2007-01-01'
+GROUP BY
+    usr,
+    song
+
