@@ -25,7 +25,7 @@ from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, typ
 from requests import Session
 
 
-from globs import DIR_CSV, DIR_JOURNAL_PICKLES
+from globs import DIR_CSV, DIR_JOURNAL_PICKLES, DIR_JOURNAL_GZIP
 
 uri = 'clickhouse+native://localhost/litanai'
 engine = create_engine(uri)
@@ -57,6 +57,14 @@ def flatten_list (list_of_lists):
 
 def split_list (list_ts, max_sublist_len):
     return[list_ts[i:i + max_sublist_len] for i in range(0, len(list_ts), max_sublist_len)]
+
+
+def convert_dld_file (id_short):
+
+    with open(os.path.join(DIR_JOURNAL_PICKLES, id_short), 'rb') as file:
+        l_entities = pickle.load(file)
+
+    pickle_entity(l_entities, id_short, DIR_JOURNAL_GZIP)
 
 
 def dl_pages (pager, nbr_entities):
@@ -574,4 +582,11 @@ l_journals_to_dl = [
     'https://openalex.org/S2735686177']
 
 # [proc_journal_dispatch(j, "always") for j in l_journals_to_dl[0:2]]
-[proc_journal_dispatch(j, "only_fresh") for j in l_journals_to_dl]
+# [proc_journal_dispatch(j, "only_fresh") for j in l_journals_to_dl]
+
+# files_to_cvrt = os.listdir(DIR_JOURNAL_PICKLES)
+# lmap(convert_dld_file, files_to_cvrt[0:5])
+
+
+
+
