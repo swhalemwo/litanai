@@ -567,4 +567,5 @@ l_journals_to_dl = [
     'https://openalex.org/S55099511',    'https://openalex.org/S4210183760',  'https://openalex.org/S4210193178'
     'https://openalex.org/S2735686177']
 
-[proc_journal_dispatch(j, True) for j in l_journals_to_dl]
+# [proc_journal_dispatch(j, "always") for j in l_journals_to_dl[0:2]]
+[proc_journal_dispatch(j, "only_fresh") for j in l_journals_to_dl]
