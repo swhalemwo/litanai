@@ -164,6 +164,10 @@ def gc_csv_files () :
                 'columns': ['source_id', 'year', 'works_count', 'cited_by_count',
                             'oa_works_count']
             },
+            'sources_topics' : {
+                'name' :os.path.join(DIR_CSV, 'sources_topics.csv.gz'),
+                'columns':['source_id', 'topic_id', 'display_name', 'topic_count', 'topic_prop']
+            }
         },
         'works': {
             'works': {
@@ -636,7 +640,8 @@ def flatten_sources(l_sources):
     
     with gzip.open(csv_files['sources']['sources']['name'], 'wt', encoding='utf-8') as sources_csv, \
          gzip.open(csv_files['sources']['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
-         gzip.open(csv_files['sources']['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv:
+         gzip.open(csv_files['sources']['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
+         gzip.open(csv_files['sources']['sources_topics']['name'], 'wt', encoding='utf-8') as sources_topics_csv:
 
         # breakpoint()
         
@@ -652,13 +657,16 @@ def flatten_sources(l_sources):
         counts_by_year_writer.writeheader()
 
 
+        sources_topics_writer = csv.DictWriter(sources_topics_csv,
+                                               fieldnames=csv_files['sources']['sources_topics']['columns'])
+        sources_topics_writer.writeheader()
+
+
         ch_client = clickhouse_connect.get_client(database = "litanai")
         qry = ch_client.query("select distinct id from sources")
-        seen_source_ids = set(row[0] for row in qry.result_rows)
-        
+        seen_source_ids = set(row[0] for row in qry.result_rows)        
 
-        ## FIXME: add some CH query here to skip sources already ingested
-        seen_source_ids = set()
+        # seen_source_ids = set()
 
         files_done = 0
         # for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'sources', '*', '*.gz')):
@@ -673,7 +681,7 @@ def flatten_sources(l_sources):
 
             # source = json.loads(source_json)
 
-            if not (source_id := source.get('id')) or source_id in seen_source_ids:
+            if (not (source_id := source.get('id'))) or source_id in seen_source_ids:
                 continue
 
             seen_source_ids.add(source_id)
@@ -697,6 +705,18 @@ def flatten_sources(l_sources):
                 for count_by_year in counts_by_year:
                     count_by_year['source_id'] = source_id
                     counts_by_year_writer.writerow(count_by_year)
+
+            if topics := source.get('topics'):
+                for topic in topics:
+                    sources_topics_writer.writerow({
+                        'source_id' : source['id'],
+                        'topic_id' : topic['id'],
+                        'display_name' : topic['display_name'],
+                        'topic_count' : topic['count'],
+                        'topic_prop' : topic['count']/source['works_count']})
+                        
+                        
+                        
 
             # files_done += 1
             # if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:

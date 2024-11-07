@@ -1,5 +1,13 @@
+-- DROP section: uncomment things to be yeeted
 
 -- DROP TABLE IF EXISTS litanai.works;
+-- DROP TABLE IF EXISTS litanai.works_referenced_works;
+-- DROP TABLE IF EXISTS litanai.works_related_works;
+
+DROP TABLE if EXISTS litanai.sources;
+DROP TABLE if EXISTS litanai.sources_counts_by_year;
+DROP TABLE if EXISTS litanai.sources_ids;
+DROP TABLE if EXISTS litanai.sources_topics;
 
 CREATE TABLE IF NOT EXISTS litanai.works (
   id text, 
@@ -34,7 +42,7 @@ CREATE TABLE IF NOT EXISTS litanai.works (
 ) ENGINE = MergeTree()
   ORDER BY publication_year;
 
--- DROP TABLE IF EXISTS litanai.works_related_works;
+
 
 CREATE TABLE IF NOT EXISTS litanai.works_related_works (
   work_id text,
@@ -43,7 +51,7 @@ CREATE TABLE IF NOT EXISTS litanai.works_related_works (
   ORDER BY related_work_id;
 
 
--- DROP TABLE IF EXISTS litanai.works_referenced_works;
+
 
 CREATE TABLE IF NOT EXISTS litanai.works_referenced_works (
   work_id text,
@@ -60,9 +68,8 @@ CREATE TABLE IF NOT EXISTS litanai.works_referenced_works (
 
 -- select title from works LIMIT 10
 
-DROP TABLE if EXISTS litanai.sources;
 
-CREATE TABLE litanai.sources (
+CREATE TABLE IF NOT EXISTS litanai.sources (
   id text NOT NULL,
   issn_l text,
   display_name text,
@@ -78,9 +85,9 @@ CREATE TABLE litanai.sources (
   ORDER BY id;
 
 
-DROP TABLE if EXISTS litanai.sources_counts_by_year;
 
-CREATE TABLE litanai.sources_counts_by_year (
+
+CREATE TABLE IF NOT EXISTS litanai.sources_counts_by_year (
   source_id text NOT NULL,
   year integer NOT NULL,
   works_count integer,
@@ -94,9 +101,9 @@ CREATE TABLE litanai.sources_counts_by_year (
 -- Name: sources_ids; Type: TABLE; Schema: openalex; Owner: -
 --
 
-DROP TABLE if EXISTS litanai.sources_ids;
 
-CREATE TABLE litanai.sources_ids (
+
+CREATE TABLE IF NOT EXISTS litanai.sources_ids (
   source_id text,
   openalex text,
   issn_l text,
@@ -106,3 +113,13 @@ CREATE TABLE litanai.sources_ids (
 ) ENGINE = MergeTree()
   ORDER BY source_id;
 
+
+
+CREATE TABLE IF NOT EXISTS litanai.sources_topics (
+  source_id text,
+  topic_id text,
+  display_name text,
+  topic_count bigint,
+  topic_prop Float32
+) ENGINE = MergeTree()
+  ORDER BY source_id;
