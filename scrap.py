@@ -331,10 +331,79 @@ Sources().["https://openalex.org/S4210172589"].
 
 # * testing saving as json rather than csv, but that's even bigger
 
+
+journal_year_id = "S125754415_2024"
+l_longworks = pickle_load_entity(journal_year_id, DIR_JOURNAL_PICKLES)
+
 DIR_ENTITIES_JSON = "/run/media/johannes/data/litanai/entities_json"
 
-with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id), 'w') as fx:
+pickle_entity(l_longworks, journal_year_id, DIR_ENTITIES_JSON)
+
+with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id) + ".json", 'w') as fx:
     json.dump(l_longworks, fx)
+
+with gzip.open(os.path.join(DIR_ENTITIES_JSON, journal_year_id) + ".json.gz", 'wt') as fx:
+    json.dump(l_longworks, fx)
+
+
+with gzip.open(os.path.join(DIR_ENTITIES_JSON, journal_year_id) + ".json.gz", 'rt') as fx:
+    l_longworks_fgz = json.load(fx)
+
+    
+
+xx = l_longworks_fgz[300]
+xx.get('id')
+
+
+import brotli
+
+t1 = time.time()
+compressed_data = brotli.compress(json.dumps(l_longworks).encode('utf-8'))
+t2 = time.time()
+
+t2-t1
+
+with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id) + "_brotli.json.br", 'wb') as f:
+    f.write(compressed_data)
+
+
+import json
+import zstandard as zstd
+
+# Example dictionary
+
+
+# Serialize and compress with Zstandard
+cctx = zstd.ZstdCompressor()
+
+t1 = time.time()
+compressed_data = cctx.compress(json.dumps(l_longworks).encode('utf-8'))
+t2 = time.time()
+t2-t1
+
+# Save to a file
+with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id) + "_zstd.json.gz", 'wb') as f:
+    f.write(compressed_data)
+
+
+
+import lzma
+
+# Example dictionary
+
+
+# Serialize and compress with LZMA
+t1 = time.time()
+compressed_data = lzma.compress(json.dumps(l_longworks).encode('utf-8'))
+t2 = time.time()
+
+t2-t1
+
+# Save to a file
+with open(os.path.join(DIR_ENTITIES_JSON, journal_year_id) + "_lzma.json.gz", 'wb') as f:
+    f.write(compressed_data)
+
+
 
 # * search
 

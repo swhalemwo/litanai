@@ -210,14 +210,20 @@ def gc_ingest_cmd (entity, DIR_CSV):
 
 def pickle_entity (l_entities, entity_id, DIR_ENTITY_PICKLES):
 
-    with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'wb') as file:
-        pickle.dump(l_entities, file)
+    # with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'wb') as file:
+    #     pickle.dump(l_entities, file)
+
+    with gzip.open(os.path.join(DIR_ENTITY_PICKLES, entity_id) + ".json.gz", 'wt') as fx:
+        json.dump(l_entities, fx)
 
 
 def pickle_load_entity (entity_id, DIR_ENTITY_PICKLES):
 
-    with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'rb') as file:
-        l_entities = pickle.load(file)
+    # with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'rb') as file:
+    #     l_entities = pickle.load(file)
+
+    with gzip.open(os.path.join(DIR_ENTITY_PICKLES, entity_id) + 'json.gz', 'rt') as fx:
+        l_entities = json.load(fx)
 
     return(l_entities)
 
