@@ -799,6 +799,12 @@ split_list(list(d_s_more['source_id']),3)
 
 # ** get journals that have topics of my journals, order by works_count/cited_by_count
 
+
+con = ibis.connect('clickhouse://localhost/litanai')
+
+tbib2 = con.table('bib2')
+tsrc = con.table('sources')
+
 tcross2 = (tbib2.filter(_.count_occ > 5)
  .cross_join(tsrc.select('id', 'display_name'))
  .mutate(sim = ngdci(_.journal, _.display_name)))
@@ -820,18 +826,29 @@ con.insert('bib_myj', tmyj)
 tmyj = con.table('bib_myj')
 tst = con.table('sources_topics')
 
+# get the main topics of my most-used journals
 t_tpcs = (tst.inner_join(tmyj, tst.source_id == tmyj.id)
  .group_by(_.topic_id)
- .aggregate(topic_count = _.topic_count.sum(), topic_prop = _.topic_prop.mean())
- .filter(_.topic_count > 100))
+ .aggregate(topic_count_sum = _.topic_count.sum(), topic_prop_mean = _.topic_prop.mean())
+ .filter(_.topic_count_sum > 100))
 
-t_tpcs.
+tw = con.table('works')
+txj = tw.group_by('source_id').aggregate(_.source_id.count())
 
+# get the journals that also have the topics that I use 
+d_journals = (t_tpcs.inner_join(tst, t_tpcs.topic_id == tst.topic_id)
+ .filter(_.topic_count > 25) # only use journals that use them substantially
+ .group_by(_.source_id) # aggregate to journal
+ .aggregate(topic_cnt_sum_jrnl = _.topic_count.sum(), n_topics_met = _.topic_id.count())
+ .filter(_.n_topics_met > 8) # only 
+ .anti_join(txj, _.source_id == txj.source_id) # yeet my journals
+ .join(tsrc.select('id', 'display_name', 'works_count', 'cited_by_count'), _.source_id == tsrc.id) # join with sources to get info
+ .mutate(cites_per_work = _.cited_by_count/_.works_count))
+ 
 
+d_journals.to_csv("~/Dropbox/proj/litanai/res/js2.csv")
 
-
-
-
+d_journals.aggregate(xx = _.works_count.sum())
 
 
 
