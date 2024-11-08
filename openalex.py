@@ -60,20 +60,6 @@ def split_list (list_ts, max_sublist_len):
     return[list_ts[i:i + max_sublist_len] for i in range(0, len(list_ts), max_sublist_len)]
 
 
-def convert_dld_file (id_short):
-
-    gc.collect()
-    print(id_short)
-
-    with open(os.path.join(DIR_JOURNAL_PICKLES, id_short), 'rb') as file:
-        l_entities = pickle.load(file)
-
-    pickle_entity(l_entities, id_short, DIR_JOURNAL_GZIP)
-
-    l_entities = 0
-    gc.collect()
-    
-
 
 def dl_pages (pager, nbr_entities):
     "download pages of pager"
