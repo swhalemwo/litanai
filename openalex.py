@@ -5,6 +5,7 @@ import json
 import os
 import time
 import pdb
+import gc
 
 import pandas as pd
 import pyalex
@@ -61,10 +62,17 @@ def split_list (list_ts, max_sublist_len):
 
 def convert_dld_file (id_short):
 
+    gc.collect()
+    print(id_short)
+
     with open(os.path.join(DIR_JOURNAL_PICKLES, id_short), 'rb') as file:
         l_entities = pickle.load(file)
 
     pickle_entity(l_entities, id_short, DIR_JOURNAL_GZIP)
+
+    l_entities = 0
+    gc.collect()
+    
 
 
 def dl_pages (pager, nbr_entities):
@@ -125,19 +133,23 @@ def proc_journal_longworks (journal_id, switch_ingest):
         
         journal_year_id = f"{id_journal_short}_{year}"
         # if the year is not in the pickles, download it
-        if journal_year_id not in os.listdir(DIR_JOURNAL_PICKLES):
+        if journal_year_id + ".json.gz" not in os.listdir(DIR_JOURNAL_GZIP):
             print(f"downloading papers for {year}")
             
             l_longworks = gl_journal_longworks(journal_id, year)
             # len(l_longworks)
             
-            pickle_entity(l_longworks, journal_year_id, DIR_JOURNAL_PICKLES)
+            pickle_entity(l_longworks, journal_year_id, DIR_JOURNAL_GZIP)
             b_data_fresh = True
 
         
         else:
-            # if year is downloaded, load it
-            l_longworks = pickle_load_entity(journal_year_id, DIR_JOURNAL_PICKLES)
+            if switch_ingest == "always":
+                # if year is downloaded, load it
+                l_longworks = pickle_load_entity(journal_year_id, DIR_JOURNAL_GZIP)
+            else:
+                l_longworks = []
+                
             print(f"retrieved {len(l_longworks)} from file")
             b_data_fresh = False
 
@@ -230,7 +242,7 @@ def pickle_load_entity (entity_id, DIR_ENTITY_PICKLES):
     # with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'rb') as file:
     #     l_entities = pickle.load(file)
 
-    with gzip.open(os.path.join(DIR_ENTITY_PICKLES, entity_id) + 'json.gz', 'rt') as fx:
+    with gzip.open(os.path.join(DIR_ENTITY_PICKLES, entity_id) + '.json.gz', 'rt') as fx:
         l_entities = json.load(fx)
 
     return(l_entities)
@@ -283,6 +295,9 @@ def ingest_dispatcher(l_entities, l_entities_to_ingest, switch_ingest, b_data_fr
         print("ingesting works")
         ingest_csv(DIR_CSV, l_entities_to_ingest)
 
+    if switch_ingest == 'never':
+        print("skip flattening and ingesting")
+
 
 
 def proc_journal_dispatch(journal_id, switch_ingest):
@@ -307,14 +322,18 @@ def proc_journal_works (id_journal, switch_ingest) :
     
         
     ## get data
-    if id_journal_short not in os.listdir(DIR_JOURNAL_PICKLES):
+    if id_journal_short + ".json.gz" not in os.listdir(DIR_JOURNAL_GZIP):
         print("downloading papers")
         l_papers = gl_journal_works(id_journal)
-        pickle_entity(l_papers, id_journal_short, DIR_JOURNAL_PICKLES)
+        pickle_entity(l_papers, id_journal_short, DIR_JOURNAL_GZIP)
         b_data_fresh = True
         
     else:
-        l_papers = pickle_load_entity(id_journal_short, DIR_JOURNAL_PICKLES)
+        # only load papers if they are to be ingested, else skip
+        if switch_ingest == "always" :
+            l_papers = pickle_load_entity(id_journal_short, DIR_JOURNAL_GZIP)
+        else:
+            l_papers = [] 
         print(f"retrieved {len(l_papers)} from file")
         b_data_fresh = False
     
@@ -334,12 +353,12 @@ def proc_journal_info (id_concept) :
     print(f"id_journal_short: {id_concept_short}")
 
     # FIXME: proper paths
-    if id_concept_short not in os.listdir(DIR_JOURNAL_PICKLES):
+    if id_concept_short not in os.listdir(DIR_JOURNAL_GZIP):
         print("downloading journal info")
         l_journals = gl_journal_info(id_concept)
-        pickle_entity(l_journals, id_concept_short, DIR_JOURNAL_PICKLES)
+        pickle_entity(l_journals, id_concept_short, DIR_JOURNAL_GZIP)
     else:
-        l_journals = pickle_load_entity(id_concept_short, DIR_JOURNAL_PICKLES)
+        l_journals = pickle_load_entity(id_concept_short, DIR_JOURNAL_GZIP)
         print(f"retrieved {len(l_journals)} from file")
 
     print("flattening journal info to csv")
