@@ -868,7 +868,9 @@ split_list(list(d_s_more['source_id']),3)
 
 # ** get journals that have topics of my journals, order by works_count/cited_by_count
 
-
+import ibis
+from ibis import _, desc
+ibis.options.interactive = True
 con = ibis.connect('clickhouse://localhost/litanai')
 
 tbib2 = con.table('bib2')
@@ -921,6 +923,12 @@ d_journals.aggregate(xx = _.works_count.sum())
 
 
 
+
+xx = split_list(d_journals['source_id'].execute().to_list(), 3)
+
+[print(i) for i in xx]
+
+
 # ** check that ibis can use multiple threads -> yes it can
 con_mus = ibis.connect('clickhouse://localhost/music')
 tlogs = con_mus.table('logs')
@@ -940,4 +948,58 @@ WHERE time_d < '2007-01-01'
 GROUP BY
     usr,
     song
+
+# * convert downloaded files to json.gz
+
+import re
+files_pickles = os.listdir(DIR_JOURNAL_PICKLES)
+files_already_cvrtd = [re.sub(r'\.json\.gz', '', i) for i in os.listdir(DIR_JOURNAL_GZIP)]
+
+files_to_cvrt = set(files_pickles) - set(files_already_cvrtd)
+
+
+# '\.json\.gz'
+
+# lmap(convert_dld_file, files_to_cvrt)
+
+# l_entities = pickle_load_entity("S38024979", DIR_JOURNAL_GZIP)
+# flatten_works(l_entities)
+
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+
+with ProcessPoolExecutor(max_workers=4) as executor:
+    executor.map(convert_dld_file, files_to_cvrt)
+
+# * flatten and ingest newly downloaded
+
+import ibis
+from ibis import _
+import re
+ibis.options.interactive = True
+
+
+
+
+l_journals_dld_prep1 = os.listdir(DIR_JOURNAL_GZIP)
+l_journals_dld_prep2 = [re.sub(r'\.json\.gz', '', i) for i in l_journals_dld_prep1]
+
+l_journals_dld = set([s.split('_', 1)[0] for s in l_journals_dld_prep2])
+    
+# filtered_strings = [s for s in l_journals_dld if s.lower().count('s') > 1]
+
+xx = list(l_journals_dld)[0:5]
+
+
+con = ibis.connect('clickhouse://localhost/litanai')
+tw = con.table("works")
+l_journals_ingstd_prep1 = tw.select(_.source_id).distinct().to_pandas()['source_id'].to_list()
+
+l_journals_ingstd = set(lmap(lambda x:re.sub(r'https://openalex.org/', '', x), l_journals_ingstd_prep1))
+
+l_journals_to_ingest = l_journals_dld - l_journals_ingstd
+print(len(l_journals_to_ingest))
+
+lmap(lambda x:proc_journal_dispatch(x, "always"), l_journals_to_ingest)
+
+stop
 
