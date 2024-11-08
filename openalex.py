@@ -21,9 +21,13 @@ import pickle
 import subprocess
 
 
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, MetaData, create_engine, text, select, tuple_, func, desc, or_, and_, cast, Numeric, distinct
-from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, types, engines
-from requests import Session
+import ibis
+from ibis import _, desc
+
+
+# from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, MetaData, create_engine, text, select, tuple_, func, desc, or_, and_, cast, Numeric, distinct
+# from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, types, engines
+# from requests import Session
 
 
 from globs import DIR_CSV, DIR_JOURNAL_PICKLES, DIR_JOURNAL_GZIP
