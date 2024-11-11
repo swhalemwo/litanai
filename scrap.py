@@ -989,6 +989,15 @@ lmap(lambda x:proc_journal_dispatch(x, "always"), l_journals_to_ingest)
 stop
 
 
+
+dxj =txj.execute()
+len(l_journals_to_dl)
+
+xx = set(l_journals_to_dl) - set(dxj['source_id'].to_list())
+# all journals I want are there
+
+
+
 # * deduplicate
 
 (tw.group_by(_.id, _.source_id)
