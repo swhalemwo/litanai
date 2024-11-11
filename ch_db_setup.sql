@@ -80,7 +80,10 @@ CREATE TABLE IF NOT EXISTS litanai.sources (
   is_in_doaj boolean,
   homepage_url text,
   works_api_url text,
-  updated_date DateTime64
+  updated_date DateTime64,
+  2yr_mean_citedness Float32,
+  h_index bigint,
+  i10_index bigint
 ) ENGINE = MergeTree()
   ORDER BY id;
 

@@ -7,6 +7,7 @@ import time
 import pdb
 import gc
 import re
+import sys
 
 import pandas as pd
 import pyalex
@@ -195,7 +196,7 @@ def proc_journal_longworks (journal_id, switch_ingest):
 
         l_entities_to_ingest = ['works', 'works_related_works', 'works_referenced_works']
         
-        ingest_dispatcher(l_longworks, l_entities_to_ingest, switch_ingest, b_data_fresh)
+        ingest_dispatcher(l_longworks, l_entities_to_ingest, switch_ingest, b_data_fresh, flatten_works)
 
         if len(l_longworks) == 0:
             year_skipped_in_row += 1
@@ -314,29 +315,31 @@ def ingest_csv(DIR_CSV, l_entities) :
        # [os.remove(DIR_CSV + file) for file in os.listdir(DIR_CSV)]
 
 
-def ingest_dispatcher(l_entities, l_entities_to_ingest, switch_ingest, b_data_fresh):
+def ingest_dispatcher(l_entities, l_entities_to_ingest, switch_ingest, b_data_fresh, func_flatten):
     "flatten and ingest depending on switches"
 
-    if switch_ingest == "only_fresh" and b_data_fresh == True:
+    if (switch_ingest == "only_fresh" and b_data_fresh == True) or (switch_ingest == 'always'):
         print("flattening papers to csv")
-        flatten_works(l_entities)
+        # flatten_works(l_entities)
+        func_flatten(l_entities)
     
         print("ingesting works")
         ingest_csv(DIR_CSV, l_entities_to_ingest)
 
-    if switch_ingest == "only_fresh" and b_data_fresh == False:
+    # if switch_ingest == "only_fresh" and b_data_fresh == False:
+    else:
         print("skip flattening and ingesting")
         # ingest_csv(DIR_CSV, l_entities_to_ingest)
 
-    if switch_ingest == "always":
+    # if switch_ingest == "always":
         
-        print("flattening papers to csv")
-        flatten_works(l_entities)
-        print("ingesting works")
-        ingest_csv(DIR_CSV, l_entities_to_ingest)
+    #     print("flattening papers to csv")
+    #     flatten_works(l_entities)
+    #     print("ingesting works")
+    #     ingest_csv(DIR_CSV, l_entities_to_ingest)
 
-    if switch_ingest == 'never':
-        print("skip flattening and ingesting")
+    # if switch_ingest == 'never':
+    #     print("skip flattening and ingesting")
 
 
 
@@ -381,38 +384,47 @@ def proc_journal_works (id_journal, switch_ingest) :
     # FIXME: ingestion should be conditional
     
     l_entities_to_ingest = ['works', 'works_related_works', 'works_referenced_works']
-    ingest_dispatcher(l_papers, l_entities_to_ingest, switch_ingest, b_data_fresh)
+    ingest_dispatcher(l_papers, l_entities_to_ingest, switch_ingest, b_data_fresh, flatten_works)
     
         
 
-def proc_journal_info (id_concept) :
+def proc_journal_info (id_concept, switch_ingest) :
 
     # breakpoint() 
 
     id_concept_short = id_concept.replace('https://openalex.org/', '')
     print(f"id_journal_short: {id_concept_short}")
 
+    # convert_dld_file(id_concept_short)
+    
+
     # FIXME: proper paths
-    if id_concept_short not in os.listdir(DIR_JOURNAL_GZIP):
+    if id_concept_short + ".json.gz" not in os.listdir(DIR_JOURNAL_GZIP):
         print("downloading journal info")
         l_journals = gl_journal_info(id_concept)
         pickle_entity(l_journals, id_concept_short, DIR_JOURNAL_GZIP)
+        b_data_fresh = True
     else:
-        l_journals = pickle_load_entity(id_concept_short, DIR_JOURNAL_GZIP)
+        if switch_ingest == "always":
+            l_journals = pickle_load_entity(id_concept_short, DIR_JOURNAL_GZIP)
+        else:
+            l_journals = []
         print(f"retrieved {len(l_journals)} from file")
+        b_data_fresh = False
 
-    print("flattening journal info to csv")
-    flatten_sources(l_journals)
+    # print("flattening journal info to csv")
+    # flatten_sources(l_journals)
 
     # j = l_journals[18] # BJS
     # topics = j['topics']
 
     # [print(j['display_name']) for j in l_journals[0:40]]
-    
-    
-    print("ingesting journals")
+        
+    # print("ingesting journals")
     l_entities_journals = ["sources", "sources_counts_by_year", 'sources_ids', 'sources_topics']
-    ingest_csv(DIR_CSV, l_entities_journals)
+    # ingest_csv(DIR_CSV, l_entities_journals)
+
+    ingest_dispatcher(l_journals, l_entities_journals, switch_ingest, b_data_fresh, flatten_sources)
 
         
 
@@ -579,9 +591,10 @@ def get_sim_journals (min_topic_cnt_ttl = 100, min_journal_topic_cnt = 25, min_t
 
 # proc_journal('https://openalex.org/C36289849')
 
-# l_concepts_to_dl = ["C36289849", "C144024400", "c17744445"]
-
-# [proc_journal_info(c) for c in l_concepts_to_dl]
+l_concepts_to_dl = [# "C36289849",
+                    # "C144024400",
+                    # "c17744445"]
+# [proc_journal_info(c, switch_ingest = 'always') for c in l_concepts_to_dl]
 
 # proc_journal_info(l_concepts_to_dl[0])
 # l_journal_info = gl_journal_info("C144024400")

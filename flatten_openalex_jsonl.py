@@ -151,7 +151,8 @@ def gc_csv_files () :
                 'columns': [
                     'id', 'issn_l', 'display_name', 'publisher',
                     'works_count', 'cited_by_count', 'is_oa',
-                    'is_in_doaj', 'homepage_url', 'works_api_url', 'updated_date'
+                    'is_in_doaj', 'homepage_url', 'works_api_url', 'updated_date',
+                    '2yr_mean_citedness', 'h_index', 'i10_index'
                 ]
             },
             'ids': {
@@ -690,6 +691,8 @@ def flatten_sources(l_sources):
             if "issn" in list(source.keys()):
                 source.pop('issn')
                 
+            source_plus_sumstats = source | source.get('summary_stats')
+
             sources_writer.writerow(source)
 
             if source_ids := source.get('ids'):
@@ -715,6 +718,11 @@ def flatten_sources(l_sources):
                         'topic_count' : topic['count'],
                         'topic_prop' : topic['count']/source['works_count']})
                         
+            files_done += 1
+            # if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+            #     break
+            if files_done % 500 == 0: print(files_done)
+
                         
                         
 
