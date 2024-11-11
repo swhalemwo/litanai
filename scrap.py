@@ -539,7 +539,7 @@ dt_bibtex_res = (dt_bibtex[dt_bibtex['journal'].notna()]
 
 
 # bibtex to write to clickhouse (toch)
-dt_bibtex_res_toch = dt_bibtex_res[dt_bibtex_res['journal_id'].notna()]
+dt_bibtex_res_toch = dt_bibtex_res[dt_bibtex_res['journal'].notna()]
 
 
 
@@ -894,27 +894,11 @@ tmyj = (tcross2.inner_join(
 con.create_table("bib_myj", schema = tmyj.schema(), overwrite = True)
 con.insert('bib_myj', tmyj)
 
-tmyj = con.table('bib_myj')
-tst = con.table('sources_topics')
 
-# get the main topics of my most-used journals
-t_tpcs = (tst.inner_join(tmyj, tst.source_id == tmyj.id)
- .group_by(_.topic_id)
- .aggregate(topic_count_sum = _.topic_count.sum(), topic_prop_mean = _.topic_prop.mean())
- .filter(_.topic_count_sum > 100))
 
-tw = con.table('works')
-txj = tw.group_by('source_id').aggregate(_.source_id.count())
-
-# get the journals that also have the topics that I use 
-d_journals = (t_tpcs.inner_join(tst, t_tpcs.topic_id == tst.topic_id)
- .filter(_.topic_count > 25) # only use journals that use them substantially
- .group_by(_.source_id) # aggregate to journal
- .aggregate(topic_cnt_sum_jrnl = _.topic_count.sum(), n_topics_met = _.topic_id.count())
- .filter(_.n_topics_met > 8) # only 
- .anti_join(txj, _.source_id == txj.source_id) # yeet my journals
- .join(tsrc.select('id', 'display_name', 'works_count', 'cited_by_count'), _.source_id == tsrc.id) # join with sources to get info
- .mutate(cites_per_work = _.cited_by_count/_.works_count))
+    
+xx = get_sim_journals(min_journal_topic_cnt = 30, min_topics_met = 6)
+xx.aggregate(_.works_count.sum())
  
 
 d_journals.to_csv("~/Dropbox/proj/litanai/res/js2.csv")
@@ -982,6 +966,7 @@ ibis.options.interactive = True
 
 l_journals_dld_prep1 = os.listdir(DIR_JOURNAL_GZIP)
 l_journals_dld_prep2 = [re.sub(r'\.json\.gz', '', i) for i in l_journals_dld_prep1]
+l_journals_dld_prep3 = [i for i in l_journals_dld_prep2 if i[0].lower() == 's']
 
 l_journals_dld = set([s.split('_', 1)[0] for s in l_journals_dld_prep2])
     
