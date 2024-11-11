@@ -500,6 +500,71 @@ def get_very_related_works (l_seed_journals):
 
 
 
+def ingest_new_journals ():
+    # breakpoint()
+
+    ibis.options.interactive = True
+
+    ## get the journals that are already downloaded
+    l_journals_dld_prep1 = os.listdir(DIR_JOURNAL_GZIP)
+    l_journals_dld_prep2 = [re.sub(r'\.json\.gz', '', i) for i in l_journals_dld_prep1]
+    l_journals_dld_prep3 = [i for i in l_journals_dld_prep2 if i[0].lower() == 's']
+
+    l_journals_dld = set([s.split('_', 1)[0] for s in l_journals_dld_prep3])
+
+    
+    ## get the journals that are already ingested
+    con = ibis.connect('clickhouse://localhost/litanai')
+    tw = con.table("works")
+    l_journals_ingstd_prep1 = tw.select(_.source_id).distinct().to_pandas()['source_id'].to_list()
+
+    l_journals_ingstd = set(lmap(lambda x:re.sub(r'https://openalex.org/', '', x), l_journals_ingstd_prep1))
+
+    ## get the journals that are downloaded and not ingested
+    l_journals_to_ingest = l_journals_dld - l_journals_ingstd
+    print(len(l_journals_to_ingest))
+
+    # xx = list(l_journals_to_ingest)
+
+    # ingest them
+    lmap(lambda x:proc_journal_dispatch(x, "always"), l_journals_to_ingest)
+
+
+def get_sim_journals (min_topic_cnt_ttl = 100, min_journal_topic_cnt = 25, min_topics_met = 5) :
+
+    "starts from my most used journals, then gets their topics, then gets other journals which also mention them"
+
+    # min_topic_cnt_ttl: how many times a topic has to be mentioned in a journal to make it substantial
+    # min_journal_topic_cnt: how many times a new journal has to have a topic to be included
+    # min_topics_met: only include journals which mention at least that many of my topics
+
+    # breakpoint()
+    tmyj = con.table('bib_myj') # get my refs
+    tst = con.table('sources_topics') # get source-topic links
+    tsrc = con.table('sources') # get sources
+    tw = con.table('works')  # get works
+    txj = tw.group_by('source_id').aggregate(_.source_id.count()) # get existing journals
+
+    # get the main topics of my most-used journals
+    t_tpcs = (tst.inner_join(tmyj, tst.source_id == tmyj.id)
+          .group_by(_.topic_id)
+          .aggregate(topic_count_sum = _.topic_count.sum(), topic_prop_mean = _.topic_prop.mean())
+          .filter(_.topic_count_sum > min_topic_cnt_ttl))
+
+    # get the journals that also have the topics that I use 
+    d_journals = (
+        t_tpcs.inner_join(tst, t_tpcs.topic_id == tst.topic_id)
+        .filter(_.topic_count > min_journal_topic_cnt) # only use journals that use them substantially
+        .group_by(_.source_id) # aggregate to journal
+        .aggregate(topic_cnt_sum_jrnl = _.topic_count.sum(), n_topics_met = _.topic_id.count())
+        .filter(_.n_topics_met > min_topics_met) # only 
+        .anti_join(txj, _.source_id == txj.source_id) # yeet my journals
+        # join with sources to get info
+        .join(tsrc.select('id', 'display_name', 'works_count', 'cited_by_count'), _.source_id == tsrc.id)
+        .mutate(cites_per_work = _.cited_by_count/_.works_count))
+
+    return(d_journals)
+
 
 # proc_journal('https://openalex.org/C36289849')
 
