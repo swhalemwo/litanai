@@ -988,3 +988,10 @@ lmap(lambda x:proc_journal_dispatch(x, "always"), l_journals_to_ingest)
 
 stop
 
+
+# * deduplicate
+
+(tw.group_by(_.id, _.source_id)
+ .aggregate(nbr_occ = _.id.count())
+ .filter(_.nbr_occ > 1)
+ .select(_.source_id).distinct()).count()
