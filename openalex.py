@@ -6,6 +6,7 @@ import os
 import time
 import pdb
 import gc
+import re
 
 import pandas as pd
 import pyalex
@@ -32,12 +33,12 @@ from ibis import _, desc
 
 from globs import DIR_CSV, DIR_JOURNAL_PICKLES, DIR_JOURNAL_GZIP
 
-uri = 'clickhouse+native://localhost/litanai'
-engine = create_engine(uri)
-session = make_session(engine)
-metadata = MetaData()
+# uri = 'clickhouse+native://localhost/litanai'
+# engine = create_engine(uri)
+# session = make_session(engine)
+# metadata = MetaData()
 
-metadata.reflect(bind=engine)
+# metadata.reflect(bind=engine)
 
 
 
@@ -62,6 +63,44 @@ def flatten_list (list_of_lists):
 
 def split_list (list_ts, max_sublist_len):
     return[list_ts[i:i + max_sublist_len] for i in range(0, len(list_ts), max_sublist_len)]
+
+
+@ibis.udf.scalar.builtin(name="ngramDistanceCaseInsensitive")
+def ngdci(a: str, b:str) -> float:
+    ...
+
+
+def print_first_elements(obj, n=5):
+    """Print the first n elements of a given object."""
+    if isinstance(obj, list) or isinstance(obj, tuple):
+        # For list or tuple, slice the first n elements
+        print(obj[:n])
+    elif isinstance(obj, dict):
+        # For dictionary, print the first n key-value pairs
+        for i, (key, value) in enumerate(obj.items()):
+            if i < n:
+                print(f"{key}: {value}")
+            else:
+                break
+    elif isinstance(obj, set):
+        # For set, convert to list and slice
+        print(list(obj)[:n])
+    elif isinstance(obj, str):
+        # For string, print the first n characters
+        print(obj[:n])
+
+    elif isinstance(obj, ibis.expr.types.relations.Table):
+        
+        print(f"{obj.count().execute()}, {len(obj.schema())}")
+        print(obj)
+        
+    
+                    
+
+    else:
+        # Handle other types as you see fit (e.g., custom objects or non-iterables)
+        print("Unsupported type or empty object")
+
 
 
 
@@ -472,19 +511,11 @@ def get_very_related_works (l_seed_journals):
 # l_journal_info = gl_journal_info("C144024400")
 
 
-
-
-# proc_journal_works(l_journals_to_dl[1], True)
-
-# [proc_journal_dispatch(j, True) for j in l_journals_to_dl]
-
+# ingest_new_journals()
 
 # proc_journal_longworks("https://openalex.org/S4210172589", True)
 
-l_seed_journals = ['https://openalex.org/S31225034', 'https://openalex.org/s98355519',
-                   'https://openalex.org/s157620343']
 
-    
 # l_journals_to_dl = get_very_related_works(l_seed_journals)
 
 # [proc_journal_dispatch(j['id'], "only_fresh") for j in l_journals_to_dl]
