@@ -102,6 +102,17 @@ def print_first_elements(obj, n=5):
         print("Unsupported type or empty object")
 
 
+def print_names(obj):
+    if isinstance(obj, dict):
+        print(obj.keys())
+    elif isinstance(obj, ibis.expr.types.relations.Table):
+        print(obj.schema())
+    elif isinstance(obj, pd.core.frame.DataFrame):
+        print(obj.columns)
+    else:
+        print("object not yet supported")
+        
+
 
 
 def dl_pages (pager, nbr_entities):
