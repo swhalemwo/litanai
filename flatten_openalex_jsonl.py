@@ -693,7 +693,7 @@ def flatten_sources(l_sources):
                 
             source_plus_sumstats = source | source.get('summary_stats')
 
-            sources_writer.writerow(source)
+            sources_writer.writerow(source_plus_sumstats)
 
             if source_ids := source.get('ids'):
                 source_ids['source_id'] = source_id
@@ -716,7 +716,7 @@ def flatten_sources(l_sources):
                         'topic_id' : topic['id'],
                         'display_name' : topic['display_name'],
                         'topic_count' : topic['count'],
-                        'topic_prop' : topic['count']/source['works_count']})
+                        'topic_prop' : topic['count']/max(1, source['works_count'])})
                         
             files_done += 1
             # if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
