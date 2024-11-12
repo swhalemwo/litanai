@@ -9,6 +9,7 @@ import gc
 import re
 import sys
 
+import numpy as np
 import pandas as pd
 import pyalex
 from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publishers, Funders, config, invert_abstract
@@ -270,6 +271,8 @@ def gc_ingest_cmd (entity, DIR_CSV):
 
 
 def pickle_entity (l_entities, entity_id, DIR_ENTITY_PICKLES):
+
+    print(f"pickling{len(l_entities)} entities")
 
     # with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'wb') as file:
     #     pickle.dump(l_entities, file)
@@ -589,11 +592,63 @@ def get_sim_journals (min_topic_cnt_ttl = 100, min_journal_topic_cnt = 25, min_t
     return(d_journals)
 
 
+def proc_sources_h_index (vlu_start, vlu_end, switch_ingest):
+    'downloads section of source info based on h-index range'
+    
+    # breakpoint()
+
+    id_short = f"sources_{vlu_start}_{vlu_end}"
+    if id_short + ".json.gz" not in os.listdir(DIR_JOURNAL_GZIP):
+
+        qry = (Sources().filter(summary_stats = {'h_index' : f">{vlu_start - 1}"})) # need to substract 1 since geq doesn't exist
+
+        # if not final query: add upper boundary
+        if pd.notna(vlu_end):
+            qry = (qry.filter(summary_stats = {'h_index' : f"<{vlu_end}"}))
+
+        nbr_sources = qry.count()
+        print(nbr_sources)
+
+        pager = qry.paginate(per_page = 200, n_max = None)
+
+        l_sources = dl_pages(pager, nbr_sources)
+        pickle_entity(l_sources, id_short, DIR_JOURNAL_GZIP)
+        b_data_fresh = True
+
+    else:
+        if switch_ingest == "always":
+            l_sources = pickle_load_entity(id_short, DIR_JOURNAL_GZIP)
+        else:
+            l_sources = []
+        print(f"retrieved {len(l_sources)} from file")
+        b_data_fresh = False
+
+
+    l_entities_journals = ["sources", "sources_counts_by_year", 'sources_ids', 'sources_topics']
+    ingest_dispatcher(l_sources, l_entities_journals, switch_ingest, b_data_fresh, flatten_sources)
+
+
+def dl_all_the_sources() :
+
+    con = ibis.connect('clickhouse://localhost/litanai')
+    tsrc = con.table("sources")
+
+    qntls = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    qntl_vlus = tsrc.aggregate(qntl_border = tsrc.h_index.quantile(qntls)).execute()
+    l_qntl_vlus = [round(i) for i in qntl_vlus['qntl_border'].to_list()[0]]
+
+    d_qntls = pd.DataFrame({'qntl' :qntls, "vlu":l_qntl_vlus})
+    d_qntls['vlu_lag'] = d_qntls['vlu'].shift(-1)
+
+    l_srccfgs = d_qntls.apply(lambda r :{'vlu_start': r['vlu'], 'vlu_end' : r['vlu_lag']}, axis = 1).tolist()
+    l_srccfgs.reverse()
+
+    [proc_sources_h_index(c['vlu_start'], c['vlu_end'], 'only_fresh') for c in l_srccfgs]
+
+
 # proc_journal('https://openalex.org/C36289849')
 
-l_concepts_to_dl = [# "C36289849",
-                    # "C144024400",
-                    # "c17744445"]
+# l_concepts_to_dl = ["C36289849", "C144024400", "c17744445"]
 # [proc_journal_info(c, switch_ingest = 'always') for c in l_concepts_to_dl]
 
 # proc_journal_info(l_concepts_to_dl[0])
@@ -612,10 +667,13 @@ l_concepts_to_dl = [# "C36289849",
 # proc_journal_dispatch('https://openalex.org/S4306463937', "only_fresh")
 
 
-
-
-
 # [proc_journal_dispatch(j, "always") for j in l_journals_to_dl[0:2]]
 # [proc_journal_dispatch(j, "never") for j in l_journals_to_dl]
 
 
+
+# * download all journal info
+# proc_sources_h_index(380, 390, "never")
+
+
+dl_all_the_sources()
