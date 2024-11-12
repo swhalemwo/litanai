@@ -1038,4 +1038,12 @@ t1 = (tw.filter(tw.display_name.ilike("%collecting in a consumer society%"))
 
 tsrc.select('id', source_name = 'display_name')
 
+lx = Works().search("high price").get()
+lmap(lambda x: print(x['display_name'], x['id']), lx)
 
+
+# * link my bibtex to OA
+
+dt_bibtex = gd_bibtex()
+
+dt_bibtex['title']
