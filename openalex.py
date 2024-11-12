@@ -598,6 +598,7 @@ def proc_sources_h_index (vlu_start, vlu_end, switch_ingest):
     # breakpoint()
 
     id_short = f"sources_{vlu_start}_{vlu_end}"
+    print(id_short)
     if id_short + ".json.gz" not in os.listdir(DIR_JOURNAL_GZIP):
 
         qry = (Sources().filter(summary_stats = {'h_index' : f">{vlu_start - 1}"})) # need to substract 1 since geq doesn't exist
@@ -639,9 +640,12 @@ def dl_all_the_sources() :
 
     d_qntls = pd.DataFrame({'qntl' :qntls, "vlu":l_qntl_vlus})
     d_qntls['vlu_lag'] = d_qntls['vlu'].shift(-1)
+    print(d_qntls)
 
     l_srccfgs = d_qntls.apply(lambda r :{'vlu_start': r['vlu'], 'vlu_end' : r['vlu_lag']}, axis = 1).tolist()
     l_srccfgs.reverse()
+
+    l_srccfgs = [{'vlu_start' : 1, 'vlu_end' : 2}, {'vlu_start' : 0, 'vlu_end' : 1}]
 
     [proc_sources_h_index(c['vlu_start'], c['vlu_end'], 'only_fresh') for c in l_srccfgs]
 
