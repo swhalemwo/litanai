@@ -1002,10 +1002,19 @@ xx = set(l_journals_to_dl) - set(dxj['source_id'].to_list())
 
 # * deduplicate
 
-(tw.group_by(_.id, _.source_id)
+tw= con.table('works')
+
+qry_dedup = (tw.group_by(_.id, _.source_id)
  .aggregate(nbr_occ = _.id.count())
  .filter(_.nbr_occ > 1)
- .select(_.source_id).distinct()).count()
+ .select(_.source_id))
+
+qry_dedup.count()
+qry_dedupcn.distinct().count()
+             
+qry
+
+
 
 # * ibis career
 
@@ -1024,7 +1033,7 @@ xx = dcree['abstract_text'].to_list()
 
 # * start with career articles
 
-FILE_CAREER_PAPERS = "~/Dropbox/phd/papers/infl/lit/lit.csv"
+
 
 
 tsrc = con.table('sources')

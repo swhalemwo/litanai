@@ -599,7 +599,7 @@ def proc_sources_h_index (vlu_start, vlu_end, switch_ingest):
     
     # breakpoint()
 
-    id_short = f"sources_{vlu_start}_{vlu_end}"
+    id_short = f"info_sources_{vlu_start}_{vlu_end}"
     print(id_short)
     if id_short + ".json.gz" not in os.listdir(DIR_JOURNAL_GZIP):
 
@@ -692,4 +692,5 @@ def gt_cree ():
 
 # * ingest new journals
 
-ingest_new_journals()
+# ingest_new_journals()
+
