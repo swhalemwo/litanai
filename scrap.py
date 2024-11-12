@@ -897,8 +897,10 @@ con.insert('bib_myj', tmyj)
 
 
     
-xx = get_sim_journals(min_journal_topic_cnt = 30, min_topics_met = 6)
-xx.aggregate(_.works_count.sum())
+xx = get_sim_journals(min_topic_cnt_ttl = 100, min_journal_topic_cnt = 20, min_topics_met = 6)
+xx.filter(_.works_count < 19000).aggregate(_.works_count.sum())
+
+
  
 
 d_journals.to_csv("~/Dropbox/proj/litanai/res/js2.csv")

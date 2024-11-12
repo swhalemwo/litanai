@@ -272,7 +272,7 @@ def gc_ingest_cmd (entity, DIR_CSV):
 
 def pickle_entity (l_entities, entity_id, DIR_ENTITY_PICKLES):
 
-    print(f"pickling{len(l_entities)} entities")
+    print(f"pickling {len(l_entities)} entities")
 
     # with open(os.path.join(DIR_ENTITY_PICKLES, entity_id), 'wb') as file:
     #     pickle.dump(l_entities, file)
@@ -563,6 +563,7 @@ def get_sim_journals (min_topic_cnt_ttl = 100, min_journal_topic_cnt = 25, min_t
     # min_topic_cnt_ttl: how many times a topic has to be mentioned in a journal to make it substantial
     # min_journal_topic_cnt: how many times a new journal has to have a topic to be included
     # min_topics_met: only include journals which mention at least that many of my topics
+    con = ibis.connect('clickhouse://localhost/litanai')
 
     # breakpoint()
     tmyj = con.table('bib_myj') # get my refs
@@ -650,29 +651,11 @@ def dl_all_the_sources() :
     [proc_sources_h_index(c['vlu_start'], c['vlu_end'], 'only_fresh') for c in l_srccfgs]
 
 
-# proc_journal('https://openalex.org/C36289849')
-
-# l_concepts_to_dl = ["C36289849", "C144024400", "c17744445"]
-# [proc_journal_info(c, switch_ingest = 'always') for c in l_concepts_to_dl]
-
-# proc_journal_info(l_concepts_to_dl[0])
-# l_journal_info = gl_journal_info("C144024400")
 
 
-# ingest_new_journals()
-
-# proc_journal_longworks("https://openalex.org/S4210172589", True)
 
 
-# l_journals_to_dl = get_very_related_works(l_seed_journals)
 
-# [proc_journal_dispatch(j['id'], "only_fresh") for j in l_journals_to_dl]
-
-# proc_journal_dispatch('https://openalex.org/S4306463937', "only_fresh")
-
-
-# [proc_journal_dispatch(j, "always") for j in l_journals_to_dl[0:2]]
-# [proc_journal_dispatch(j, "never") for j in l_journals_to_dl]
 
 
 
@@ -680,4 +663,16 @@ def dl_all_the_sources() :
 # proc_sources_h_index(380, 390, "never")
 
 
-dl_all_the_sources()
+# dl_all_the_sources()
+
+# * download new journals
+# qry = get_sim_journals(min_topic_cnt_ttl = 100, min_journal_topic_cnt = 20, min_topics_met = 6)
+# # xx.filter(_.works_count < 19000).aggregate(_.works_count.sum())
+
+# l_journals = qry.select('source_id').execute()['source_id'].to_list()
+# print(len(l_journals))
+# [proc_journal_dispatch(j, "never") for j in l_journals]
+
+# * ingest new journals
+
+ingest_new_journals()
