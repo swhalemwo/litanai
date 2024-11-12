@@ -16,7 +16,7 @@ from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publ
 
 from flatten_openalex_jsonl import flatten_works, flatten_sources, init_dict_writer
 
-from litanai import gd_bibtex
+from litanai import gd_bibtex, litanai
 
 
 import clickhouse_connect
@@ -28,20 +28,13 @@ import ibis
 from ibis import _, desc
 
 
-# from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, MetaData, create_engine, text, select, tuple_, func, desc, or_, and_, cast, Numeric, distinct
-# from clickhouse_sqlalchemy import Table, make_session, get_declarative_base, types, engines
-# from requests import Session
+con = ibis.connect('clickhouse://localhost/litanai')
+tw = con.table('works')
+tsrc = con.table('sources')
 
 
 from globs import DIR_CSV, DIR_JOURNAL_GZIP, FILE_CAREER_PAPERS
-
-# uri = 'clickhouse+native://localhost/litanai'
-# engine = create_engine(uri)
-# session = make_session(engine)
-# metadata = MetaData()
-
-# metadata.reflect(bind=engine)
-
+from jutils import *
 
 
 config.email
@@ -49,71 +42,6 @@ config.email = "johannes.ae@hotmail.de"
 config.max_retries = 0
 config.retry_backoff_factor = 0.1
 config.retry_http_codes = [429, 500, 503]
-
-
-
-def debugger_is_active() -> bool:
-    """Return if the debugger is currently active"""
-    return hasattr(sys, 'gettrace') and sys.gettrace() is not None
-
-
-def lmap (fun, iterable):
-    return (list(map(fun, iterable)))
-
-def flatten_list (list_of_lists):
-    return([x for xs in list_of_lists for x in xs])
-
-def split_list (list_ts, max_sublist_len):
-    return[list_ts[i:i + max_sublist_len] for i in range(0, len(list_ts), max_sublist_len)]
-
-
-@ibis.udf.scalar.builtin(name="ngramDistanceCaseInsensitive")
-def ngdci(a: str, b:str) -> float:
-    ...
-
-
-def print_first_elements(obj, n=5):
-    """Print the first n elements of a given object."""
-    if isinstance(obj, list) or isinstance(obj, tuple):
-        # For list or tuple, slice the first n elements
-        print(obj[:n])
-    elif isinstance(obj, dict):
-        # For dictionary, print the first n key-value pairs
-        for i, (key, value) in enumerate(obj.items()):
-            if i < n:
-                print(f"{key}: {value}")
-            else:
-                break
-    elif isinstance(obj, set):
-        # For set, convert to list and slice
-        print(list(obj)[:n])
-    elif isinstance(obj, str):
-        # For string, print the first n characters
-        print(obj[:n])
-
-    elif isinstance(obj, ibis.expr.types.relations.Table):
-        
-        print(f"{obj.count().execute()}, {len(obj.schema())}")
-        print(obj)
-        
-    
-                    
-
-    else:
-        # Handle other types as you see fit (e.g., custom objects or non-iterables)
-        print("Unsupported type or empty object")
-
-
-def print_names(obj):
-    if isinstance(obj, dict):
-        print(obj.keys())
-    elif isinstance(obj, ibis.expr.types.relations.Table):
-        print(obj.schema())
-    elif isinstance(obj, pd.core.frame.DataFrame):
-        print(obj.columns)
-    else:
-        print("object not yet supported")
-        
 
 
 
@@ -791,7 +719,7 @@ l_journals = [
   "https://openalex.org/S4363607358"
 ]
 
-[proc_journal_dispatch(j, "only_fresh") for j in l_journals]
+# [proc_journal_dispatch(j, "only_fresh") for j in l_journals]
 
 # * ingest new journals
 

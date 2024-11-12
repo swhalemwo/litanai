@@ -15,6 +15,7 @@ import pyarrow
 import json
 import tiktoken
 import re
+from jutils import *
 
 def get_secret(secret):
     return(
@@ -178,6 +179,12 @@ def qry_oai (key, prompt, text_to_query):
 
     res_json = json.loads(res_dict)
 
+    return(res_json)
+
+def qry_oai_quotes (key, prompt, text_to_query):
+
+    res_json = qry_oai(key, prompt, text_to_query)
+
     if list(res_json.keys()) == ['pagenumber', 'quote', 'reason']:
         res_json2 = res_json
 
@@ -211,20 +218,31 @@ The text follows below this line:
 
 
 def litanai (query_reltext, prompt_oai, proj_name, head):
-    "integrated litreview: first get queries from database"
-    
-    
+    """
+    integrated litreview: first get queries from database
 
+    Args:
+        query_reltext (str): sql query to generate a pandas df with columns key (identifier) and text
+        prompt_oai (str): prompt to send to open ai
+        proj_name (str): project name to save results
+        head (bool): flag whether to use only first entries (for debugging)
+
+        Returns:
+            nothing
+    """
+    
+    breakpoint()
+    
     dt_reltexts = gd_reltexts(query_reltext)
     print(dt_reltexts.shape)
-
+    
     
     if head: 
         l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000].head()
-                 .apply(lambda row: qry_oai(row['key'], prompt_oai, row['text']), axis = 1))
+                 .apply(lambda row: qry_oai_quotes(row['key'], prompt_oai, row['text']), axis = 1))
     else:
         l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000]
-                 .apply(lambda row: qry_oai(row['key'], prompt_oai, row['text']), axis = 1))
+                 .apply(lambda row: qry_oai_quotes(row['key'], prompt_oai, row['text']), axis = 1))
     
     # combine results
     l_res_cbnd = [res for res in l_res if not res.empty]
@@ -242,3 +260,7 @@ def litanai (query_reltext, prompt_oai, proj_name, head):
 
 # ** private museum influence
 
+
+# qry_oai(dt_reltexts['key'][0], prompt_oai, dt_reltexts['text'][0])
+
+# qry_oai('somekey', "you look at a text that contains some words. return all words that refer to colors. put them in a json list", "red apple blue car dragon")
