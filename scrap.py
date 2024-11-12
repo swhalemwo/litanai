@@ -423,7 +423,7 @@ DIR_RES = "/run/media/johannes/data/litanai/results/"
 t_works = Table('works', metadata, autoload_with = engine)
 t_sources = Table('sources', metadata, autoload_with = engine)
 
-search_strings_career = ['career', 'life-course' 'lifecourse']
+search_strings_career = ['career', 'life-course', 'lifecourse']
 search_strings_subject = ['artist', 'musician', 'poet', 'painter']
 search_strings_outcome = ['recogni', 'reputation', 'consecrat', 'canoniz']
 
@@ -1004,3 +1004,36 @@ xx = set(l_journals_to_dl) - set(dxj['source_id'].to_list())
  .aggregate(nbr_occ = _.id.count())
  .filter(_.nbr_occ > 1)
  .select(_.source_id).distinct()).count()
+
+# * ibis career
+
+search_strings_career = ['%career%', '%life-course%', '%lifecourse%']
+search_strings_subject = ['%artist%', '%musician%', '%poet%', '%painter%']
+search_strings_outcome = ['%recogni%', '%reputation%', '%consecrat%', '%canoniz%']
+
+
+qry = tw.filter(tw.abstract_text.ilike(search_strings_career),
+                tw.abstract_text.ilike(search_strings_subject),
+                tw.abstract_text.ilike(search_strings_outcome))
+
+dcree = qry.execute()
+xx = dcree['abstract_text'].to_list()
+
+
+# * start with career articles
+
+FILE_CAREER_PAPERS = "~/Dropbox/phd/papers/infl/lit/lit.csv"
+
+
+tsrc = con.table('sources')
+
+
+t1 = (tw.filter(tw.display_name.ilike("%collecting in a consumer society%"))
+ .select('id', 'display_name', 'source_id'))
+
+ # .inner_join(tsrc.select('id', source_name = 'display_name'), tsrc.id == tw.source_id)
+ # .select('id', 'display_name', 'source_name'))
+
+tsrc.select('id', source_name = 'display_name')
+
+
