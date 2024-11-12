@@ -1034,21 +1034,45 @@ xx = dcree['abstract_text'].to_list()
 # * start with career articles
 
 
-
+con = ibis.connect('clickhouse://localhost/litanai')
+ibis.options.interactive = True
+ibis.options.interactive = False
 
 tsrc = con.table('sources')
+tw = con.table('works')
+
+tcree = gt_cree()
+twrw = con.table("works_related_works")
+
+# get unique related ones
+qry_relw = (twrw.filter(twrw.work_id.isin(tcree.work_id))
+ .select(_.related_work_id).distinct())
+ 
+qry_relw.count()
+qry_relw_xj = tw.filter(tw.id.isin(qry_relw.related_work_id)) #  get related that exists
+
+# get ids of those that are not in tw
+qry_relw_nxj = qry_relw.filter(qry_relw.related_work_id.notin(qry_relw_xj.id))
+
+l_workids = qry_relw_nxj.select('related_work_id').to_pandas()['related_work_id'].to_list()
+
+ls = gd_journals(l_workids)
+
+# query relate journals
+qry_rels = tsrc.filter(tsrc.id.isin(ls))
+
+qry_rels.aggregate(_.works_count.sum())
+ls2 = qry_rels.filter(_.works_count < 1e5).order_by(_.works_count.desc()).select('id').execute()['id'].to_list()
 
 
-t1 = (tw.filter(tw.display_name.ilike("%collecting in a consumer society%"))
- .select('id', 'display_name', 'source_id'))
 
- # .inner_join(tsrc.select('id', source_name = 'display_name'), tsrc.id == tw.source_id)
- # .select('id', 'display_name', 'source_name'))
 
-tsrc.select('id', source_name = 'display_name')
 
-lx = Works().search("high price").get()
-lmap(lambda x: print(x['display_name'], x['id']), lx)
+q1 = tcree.inner_join(twrw, "work_id")
+q2 = tcree.inner_join(twrw, tcree.work_id == twrw.work_id)
+q2.execute()
+print(ibis.to_sql(q2))
+
 
 
 # * link my bibtex to OA
