@@ -205,6 +205,18 @@ def qry_oai_quotes (key, prompt, text_to_query):
 
     return(dt_res)
 
+def qry_oai_assess (key, prompt, text_to_query):
+
+    # breakpoint()
+    print(key)
+
+    res_json = qry_oai(key, prompt, text_to_query)
+    dt_res = pd.DataFrame([res_json])
+    dt_res.insert(0, "key", key)
+    dt_res.insert(1, "text", text_to_query)
+    return(dt_res)
+
+
 def gs_oai_prompt (topic, desc):
     "generate prompt: include extraction steps"
     
@@ -219,13 +231,14 @@ The text follows below this line:
     return(prompt_full)
 
 
-def litanai (query_reltext, prompt_oai, proj_name, head):
+def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
     """
     integrated litreview: first get queries from database
 
     Args:
         query_reltext (str): sql query to generate a pandas df with columns key (identifier) and text
         prompt_oai (str): prompt to send to open ai
+        qry_fun (fun): function to apply to each row (e.g. qry_oai_assessment)
         proj_name (str): project name to save results
         head (bool): flag whether to use only first entries (for debugging)
 
@@ -233,18 +246,21 @@ def litanai (query_reltext, prompt_oai, proj_name, head):
             nothing
     """
     
-    breakpoint()
+    # breakpoint()
     
     dt_reltexts = gd_reltexts(query_reltext)
     print(dt_reltexts.shape)
     
-    
-    if head: 
+    # qry_fun("asf", "select all colors, return a json dict", "blue car apple gree")
+
+    if head:
+        
         l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000].head()
-                 .apply(lambda row: qry_oai_quotes(row['key'], prompt_oai, row['text']), axis = 1))
+                 .apply(lambda row: qry_fun(row['key'], prompt_oai, row['text']), axis = 1))
+        
     else:
         l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000]
-                 .apply(lambda row: qry_oai_quotes(row['key'], prompt_oai, row['text']), axis = 1))
+                 .apply(lambda row: qry_fun(row['key'], prompt_oai, row['text']), axis = 1))
     
     # combine results
     l_res_cbnd = [res for res in l_res if not res.empty]
@@ -253,6 +269,7 @@ def litanai (query_reltext, prompt_oai, proj_name, head):
 
     dt_res_cbnd.to_csv(f"{PROJ_DIR}res/res_{proj_name}.csv")
     print('done')
+    return(dt_res_cbnd)
 
 
 # if __name__ == "__main__":
