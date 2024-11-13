@@ -1018,17 +1018,49 @@ qry
 
 # * ibis career
 
+ibis.options.interactive = True
+
 search_strings_career = ['%career%', '%life-course%', '%lifecourse%']
 search_strings_subject = ['%artist%', '%musician%', '%poet%', '%painter%']
 search_strings_outcome = ['%recogni%', '%reputation%', '%consecrat%', '%canoniz%']
 
 
-qry = tw.filter(tw.abstract_text.ilike(search_strings_career),
-                tw.abstract_text.ilike(search_strings_subject),
-                tw.abstract_text.ilike(search_strings_outcome))
+qry = (tw.filter(tw.abstract_text.ilike(search_strings_career),
+                 tw.abstract_text.ilike(search_strings_subject),
+                 tw.abstract_text.ilike(search_strings_outcome))
+       .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text)
+       .filter(_.cited_by_count > 5))
+       
+       
+
+t_cree = gt_cree()
 
 dcree = qry.execute()
+
+view_xl(dcree)
+
+dcree2 = dcree[dcree['cited_by_count'] > 5]
+
+prompt_oai = """
+you will read a short text, which generally is the abstract of a scientific article, but it might also be the first few paragraphs. you have to evaluate whether the text is about artist careers, in particular whether it deals with factors leading to successful careers, which might be phrased as success, recognition, reputation, consecration, or canonization. you have to assess a number of things:
+- relevance, i.e. whether the text is about artist careers. this should be a decimal number ranging from 0 to 1 based on how relevant the text is for artistic careers
+- discipline, which should be your judgement of what discipline the article is from (e.g. sociology, art history, economics)
+- time period: which time period the artists are from (if the text is not about artists, return NA)
+- methodology: whether the text is quantitative or qualitative (return NA if not applicable)
+return these values as a json-dictionary with the keys 'relevance', 'discipline', 'time_period', and 'methodology'
+
+the text follows below: 
+"""
+
+import importlib
+import litanai
+importlib.reload(litanai)
+from litanai import litanai, qry_oai_assess
+
+dx = litanai(str(ibis.to_sql(qry)), prompt_oai, qry_oai_assess, "cree_find", False)
+
 xx = dcree['abstract_text'].to_list()
+
 
 
 # * start with career articles
@@ -1062,7 +1094,12 @@ ls = gd_journals(l_workids)
 qry_rels = tsrc.filter(tsrc.id.isin(ls))
 
 qry_rels.aggregate(_.works_count.sum())
-ls2 = qry_rels.filter(_.works_count < 1e5).order_by(_.works_count.desc()).select('id').execute()['id'].to_list()
+
+ls2 = qry_rels.filter(
+    _.works_count < 1e5).order_by(_.works_count.desc()).select('id').execute()['id'].to_list()
+
+
+
 
 
 

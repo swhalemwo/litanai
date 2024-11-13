@@ -635,6 +635,8 @@ def gd_journals(l_works) :
 
         
         
+# * query database
+
 
 
 
