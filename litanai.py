@@ -15,8 +15,8 @@ import pyarrow
 import json
 import tiktoken
 import re
+import sqlite3
 from jutils import *
-
 from globs import *
 
 def get_secret(secret):
@@ -183,7 +183,7 @@ def qry_oai (key, prompt, text_to_query):
 
     return(res_json)
 
-def qry_oai_quotes (key, prompt, text_to_query):
+def qry_oai_quotes (key, prompt, text_to_query, proj_name):
 
     res_json = qry_oai(key, prompt, text_to_query)
 
@@ -201,12 +201,33 @@ def qry_oai_quotes (key, prompt, text_to_query):
             pdb.set_trace()
         
     dt_res = pd.DataFrame(res_json2)
+    write_to_db(dt_res, table_name = proj_name)
     dt_res.insert(0, "key", key)
 
     return(dt_res)
 
-def qry_oai_assess (key, prompt, text_to_query):
+def write_to_db(dataframe, table_name, db_name='openai_responses.db'):
+    """
+    Writes a DataFrame to an SQLite database.
 
+    Parameters:
+        dataframe (pd.DataFrame): The DataFrame to write to the database.
+        db_name (str): The name of the SQLite database file.
+        table_name (str): The name of the table to write data to.
+    """
+    # Connect to the SQLite database (creates it if it doesn't exist)
+    conn = sqlite3.connect(db_name)
+    
+    # Create a table if it doesn't exist
+    dataframe.to_sql(table_name, conn, if_exists='append', index=False)
+    
+    # Close the connection
+    conn.close()
+    
+
+def qry_oai_assess (key, prompt, text_to_query, proj_name):
+    
+    
     # breakpoint()
     print(key)
 
@@ -214,6 +235,9 @@ def qry_oai_assess (key, prompt, text_to_query):
     dt_res = pd.DataFrame([res_json])
     dt_res.insert(0, "key", key)
     dt_res.insert(1, "text", text_to_query)
+
+    write_to_db(dt_res, table_name = proj_name)
+
     return(dt_res)
 
 
@@ -236,7 +260,8 @@ def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
     integrated litreview: first get queries from database
 
     Args:
-        query_reltext (str): sql query to generate a pandas df with columns key (identifier) and text
+        query_reltext (str): sql query to generate a pandas df with columns key (identifier) and text,
+                            or the pandas df directly
         prompt_oai (str): prompt to send to open ai
         qry_fun (fun): function to apply to each row (e.g. qry_oai_assessment)
         proj_name (str): project name to save results
@@ -248,20 +273,41 @@ def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
     
     # breakpoint()
     
-    dt_reltexts = gd_reltexts(query_reltext)
+    ## if input is pandas.df, use that, else generate it from query
+    if isinstance(query_reltext, str):
+        dt_reltexts = gd_reltexts(query_reltext)
+    elif isinstance(query_reltext, pd.core.frame.DataFrame):
+        dt_reltexts = query_reltext
+
+
     print(dt_reltexts.shape)
-    
-    # qry_fun("asf", "select all colors, return a json dict", "blue car apple gree")
+
+    # check which works have been checked already
+    con_sqlite = ibis.connect("sqlite://openai_responses.db")
+    tproj = con_sqlite.table(proj_name)
+    keys_in_proj = tproj.select('key').distinct().execute()['key'].to_list()
+
+    con_ch = ibis.connect("clickhouse://localhost/litanai")
+    tcree = con_ch.table('cree')
+    keys_in_ch = tcree.select('work_id').distinct().execute()['work_id'].to_list()
+
+    keys_to_yeet = list(set(keys_in_proj + keys_in_ch))
+
+    dt_reltexts_fltrd = dt_reltexts[~dt_reltexts['key'].isin(keys_to_yeet)]
+    dt_reltexts_fltrd = dt_reltexts_fltrd[dt_reltexts_fltrd['tokens'] < 1e5]
+
+    # & ~dt_reltexts['tokens'] < 1e5]
+
+    print(dt_reltexts_fltrd.shape)
+        
+    # raise RuntimeError("it's time to stop.")
 
     if head:
+        dt_reltexts_fltrd = dt_reltexts_fltrd.head()
         
-        l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000].head()
-                 .apply(lambda row: qry_fun(row['key'], prompt_oai, row['text']), axis = 1))
+    l_res = (dt_reltexts_fltrd
+             .apply(lambda row: qry_fun(row['key'], prompt_oai, row['text'], proj_name), axis = 1))
         
-    else:
-        l_res = (dt_reltexts[dt_reltexts['tokens'] < 100000]
-                 .apply(lambda row: qry_fun(row['key'], prompt_oai, row['text']), axis = 1))
-    
     # combine results
     l_res_cbnd = [res for res in l_res if not res.empty]
 
