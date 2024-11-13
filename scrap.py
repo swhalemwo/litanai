@@ -1055,12 +1055,26 @@ the text follows below:
 import importlib
 import litanai
 importlib.reload(litanai)
-from litanai import litanai, qry_oai_assess
+from litanai import litanai, qry_oai_assess, gd_reltexts
 
-dx = litanai(str(ibis.to_sql(qry)), prompt_oai, qry_oai_assess, "cree_find", False)
+
+dt_reltexts = gd_reltexts(str(ibis.to_sql(qry)))
+dx = litanai(dt_reltexts, prompt_oai, qry_oai_assess, "cree_find", False)
+
+# * evaluate results
+
+conlite = ibis.connect('sqlite://openai_responses.db')
+tresp = conlite.table('cree_find')
+tresp.group_by('relevance').aggregate(nbr = _.relevance.count())
+tresp.filter(_.relevance > 0.9, _.methodology == 'quantitative').count()
+tresp.filter(_.methodology == 'quantitative').count()
+view_xl(tresp.filter(_.relevance > 0.5, _.methodology == 'quantitative').execute())
+
+# inspect latest batch (related works)
+view_xl(tresp.tail(160).filter(_.relevance > 0.5, _.methodology == 'quantitative').execute())
+
 
 xx = dcree['abstract_text'].to_list()
-
 
 
 # * start with career articles
@@ -1083,6 +1097,8 @@ qry_relw = (twrw.filter(twrw.work_id.isin(tcree.work_id))
 qry_relw.count()
 qry_relw_xj = tw.filter(tw.id.isin(qry_relw.related_work_id)) #  get related that exists
 
+# ** get articles that are not in db
+
 # get ids of those that are not in tw
 qry_relw_nxj = qry_relw.filter(qry_relw.related_work_id.notin(qry_relw_xj.id))
 
@@ -1097,10 +1113,6 @@ qry_rels.aggregate(_.works_count.sum())
 
 ls2 = qry_rels.filter(
     _.works_count < 1e5).order_by(_.works_count.desc()).select('id').execute()['id'].to_list()
-
-
-
-
 
 
 

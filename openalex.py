@@ -16,7 +16,7 @@ from pyalex import Works, Authors, Sources, Institutions, Topics, Concepts, Publ
 
 from flatten_openalex_jsonl import flatten_works, flatten_sources, init_dict_writer
 
-from litanai import gd_bibtex, litanai
+from litanai import gd_bibtex, litanai, qry_oai_assess, gd_reltexts
 
 
 import clickhouse_connect
@@ -637,7 +637,48 @@ def gd_journals(l_works) :
         
 # * query database
 
+# search_strings_career = ['%career%', '%life-course%', '%lifecourse%']
+# search_strings_subject = ['%artist%', '%musician%', '%poet%', '%painter%']
+# search_strings_outcome = ['%recogni%', '%reputation%', '%consecrat%', '%canoniz%']
 
+
+# qry = (tw.filter(tw.abstract_text.ilike(search_strings_career),
+#                  tw.abstract_text.ilike(search_strings_subject),
+#                  tw.abstract_text.ilike(search_strings_outcome))
+#        .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
+#        # .filter(_.cited_by_count > 5))
+
+raise RuntimeError("it's time to stop.")
+
+# get works related (according to OA) to relevant works 
+
+tcree = gt_cree()
+twrw = con.table("works_related_works")
+
+
+# get unique related ones
+qry_relw = (twrw.filter(twrw.work_id.isin(tcree.work_id))
+ .select(_.related_work_id).distinct())
+ 
+qry_relw.count()
+
+qry = (tw.filter(tw.id.isin(qry_relw.related_work_id)) #  get related that exists
+       .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
+
+
+prompt_oai = """
+you will read a short text, which generally is the abstract of a scientific article, but it might also be the first few paragraphs. you have to evaluate whether the text is about artist careers, in particular whether it deals with factors leading to successful careers, which might be phrased as success, recognition, reputation, consecration, or canonization. you have to assess a number of things:
+- relevance, i.e. whether the text is about artist careers. this should be a decimal number ranging from 0 to 1 based on how relevant the text is for artistic careers
+- discipline, which should be your judgement of what discipline the article is from (e.g. sociology, art history, economics)
+- time period: which time period the artists are from (if the text is not about artists, return NA)
+- methodology: whether the text is quantitative or qualitative (return NA if not applicable)
+return these values as a json-dictionary with the keys 'relevance', 'discipline', 'time_period', and 'methodology'
+
+the text follows below: 
+"""
+
+dt_reltexts = gd_reltexts(str(ibis.to_sql(qry)))
+dx = litanai(dt_reltexts, prompt_oai, qry_oai_assess, "cree_find", False)
 
 
 # * download all journal info
