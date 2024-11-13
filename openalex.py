@@ -33,7 +33,7 @@ tw = con.table('works')
 tsrc = con.table('sources')
 
 
-from globs import DIR_CSV, DIR_JOURNAL_GZIP, FILE_CAREER_PAPERS
+from globs import DIR_CSV, DIR_JOURNAL_GZIP, FILE_CAREER_PAPERS, PROJ_DIR
 from jutils import *
 
 
@@ -652,76 +652,10 @@ def gd_journals(l_works) :
 # print(len(l_journals))
 # [proc_journal_dispatch(j, "never") for j in l_journals]
 
-l_journals = [
-  "https://openalex.org/S2764905038",
-  "https://openalex.org/S104875562",
-  "https://openalex.org/S4306462844",
-  "https://openalex.org/S2764513482",
-  "https://openalex.org/S2764385719",
-  "https://openalex.org/S4317411217",
-  "https://openalex.org/S4306463440",
-  "https://openalex.org/S2765015808",
-  "https://openalex.org/S193091622",
-  "https://openalex.org/S4210178775",
-  "https://openalex.org/S2764748148",
-  "https://openalex.org/S179289126",
-  "https://openalex.org/S97631563",
-  "https://openalex.org/S40080443",
-  "https://openalex.org/S141067752",
-  "https://openalex.org/S84333065",
-  "https://openalex.org/S105007214",
-  "https://openalex.org/S4306530833",
-  "https://openalex.org/S2738486533",
-  "https://openalex.org/S2764901579",
-  "https://openalex.org/S41534456",
-  "https://openalex.org/S4210203272",
-  "https://openalex.org/S139573839",
-  "https://openalex.org/S137426068",
-  "https://openalex.org/S4210202295",
-  "https://openalex.org/S181318168",
-  "https://openalex.org/S197616855",
-  "https://openalex.org/S4210178312",
-  "https://openalex.org/S5138143",
-  "https://openalex.org/S122995266",
-  "https://openalex.org/S4210196495",
-  "https://openalex.org/S2765054653",
-  "https://openalex.org/S118273128",
-  "https://openalex.org/S4306529289",
-  "https://openalex.org/S4306533078",
-  "https://openalex.org/S4210230127",
-  "https://openalex.org/S2764865126",
-  "https://openalex.org/S2764737045",
-  "https://openalex.org/S2765029338",
-  "https://openalex.org/S4210217072",
-  "https://openalex.org/S4306494530",
-  "https://openalex.org/S4210199091",
-  "https://openalex.org/S4306496462",
-  "https://openalex.org/S4210188146",
-  "https://openalex.org/S4210218899",
-  "https://openalex.org/S70374997",
-  "https://openalex.org/S4210220655",
-  "https://openalex.org/S4210188681",
-  "https://openalex.org/S84485826",
-  "https://openalex.org/S4210228244",
-  "https://openalex.org/S4210184523",
-  "https://openalex.org/S4210188011",
-  "https://openalex.org/S4210225422",
-  "https://openalex.org/S2737705476",
-  "https://openalex.org/S2764720961",
-  "https://openalex.org/S4210231841",
-  "https://openalex.org/S4210179551",
-  "https://openalex.org/S2764562604",
-  "https://openalex.org/S4306515937",
-  "https://openalex.org/S4210194857",
-  "https://openalex.org/S4210200228",
-  "https://openalex.org/S2764972246",
-  "https://openalex.org/S4306532157",
-  "https://openalex.org/S4363607358"
-]
-
 # [proc_journal_dispatch(j, "only_fresh") for j in l_journals]
 
 # * ingest new journals
 
 # ingest_new_journals()
+
 

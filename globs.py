@@ -9,3 +9,4 @@ DIR_JOURNAL_GZIP = "/run/media/johannes/data/litanai/gzip/"
 
 DIR_PDF = "/run/media/johannes/data/litanai/pdf/"
 FILE_CAREER_PAPERS = "~/Dropbox/phd/papers/infl/lit/lit_infl.csv"
+PROJ_DIR = "/home/johannes/Dropbox/proj/litanai/"

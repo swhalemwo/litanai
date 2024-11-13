@@ -17,6 +17,8 @@ import tiktoken
 import re
 from jutils import *
 
+from globs import *
+
 def get_secret(secret):
     return(
         subprocess.run("pass show " + secret, shell = True,

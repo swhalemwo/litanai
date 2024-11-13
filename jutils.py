@@ -1,5 +1,6 @@
 import ibis
 import sys
+import tempfile
 
 def debugger_is_active() -> bool:
     """Return if the debugger is currently active"""
@@ -62,3 +63,30 @@ def print_names(obj):
         print(obj.columns)
     else:
         print("object not yet supported")
+
+
+def view_xl(data, browser_xl="libreoffice"):
+    """
+    Exports a DataFrame to a spreadsheet for inspection.
+
+    Sometimes it is helpful or necessary to have a look at data in a spreadsheet format.
+    
+    Parameters:
+        data (pd.DataFrame): DataFrame to be displayed.
+        browser_xl (str): Program for opening DataFrame. Default is 'libreoffice', 
+                          fast alternative is 'gnumeric'.
+                          
+    Returns:
+        None
+    """
+    # Check if running in an interactive environment (e.g., Jupyter)
+    # if hasattr(__builtins__, 'get_ipython'):
+    #     # Create a temporary CSV file
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+        # Write the DataFrame to CSV
+        data.to_csv(tmp.name, index=False)
+        # Open the file with the specified program
+        # if platform.system() == "Windows":
+        subprocess.run([browser_xl, tmp.name])
+        # else:
+        #     subprocess.run([browser_xl, tmp.name])
