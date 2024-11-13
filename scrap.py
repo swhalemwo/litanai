@@ -1070,8 +1070,20 @@ tresp.filter(_.relevance > 0.9, _.methodology == 'quantitative').count()
 tresp.filter(_.methodology == 'quantitative').count()
 view_xl(tresp.filter(_.relevance > 0.5, _.methodology == 'quantitative').execute())
 
+import jutils
+importlib.reload(jutils)
+from jutils import *
+
 # inspect latest batch (related works)
-view_xl(tresp.tail(160).filter(_.relevance > 0.5, _.methodology == 'quantitative').execute())
+view_xl((tresp.mutate(row_nbr = ibis.row_number())
+ .order_by(desc(_.row_nbr))
+ .limit(160)
+ .filter(_.relevance > 0.5, _.methodology == 'quantitative')).execute())
+
+
+
+
+
 
 
 xx = dcree['abstract_text'].to_list()
