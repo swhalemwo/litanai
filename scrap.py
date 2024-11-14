@@ -1061,33 +1061,6 @@ from litanai import litanai, qry_oai_assess, gd_reltexts
 dt_reltexts = gd_reltexts(str(ibis.to_sql(qry)))
 dx = litanai(dt_reltexts, prompt_oai, qry_oai_assess, "cree_find", False)
 
-# * evaluate results
-
-conlite = ibis.connect('sqlite://openai_responses.db')
-tresp = conlite.table('cree_find')
-tresp.group_by('relevance').aggregate(nbr = _.relevance.count())
-tresp.filter(_.relevance > 0.9, _.methodology == 'quantitative').count()
-tresp.filter(_.methodology == 'quantitative').count()
-view_xl(tresp.filter(_.relevance > 0.5, _.methodology == 'quantitative').execute())
-
-import jutils
-importlib.reload(jutils)
-from jutils import *
-
-# inspect latest batch (related works)
-view_xl((tresp.mutate(row_nbr = ibis.row_number())
- .order_by(desc(_.row_nbr))
- .limit(160)
- .filter(_.relevance > 0.5, _.methodology == 'quantitative')).execute())
-
-
-
-
-
-
-
-xx = dcree['abstract_text'].to_list()
-
 
 # * start with career articles
 
@@ -1133,6 +1106,54 @@ q1 = tcree.inner_join(twrw, "work_id")
 q2 = tcree.inner_join(twrw, tcree.work_id == twrw.work_id)
 q2.execute()
 print(ibis.to_sql(q2))
+
+
+# * evaluate results
+
+conlite = ibis.connect('sqlite://openai_responses.db')
+tresp = conlite.table('cree_find')
+tresp.group_by('relevance').aggregate(nbr = _.relevance.count())
+tresp.filter(_.relevance > 0.9, _.methodology == 'quantitative').count()
+tresp.filter(_.methodology == 'quantitative').count()
+view_xl(tresp.filter(_.relevance > 0.5, _.methodology == 'quantitative').execute())
+
+import jutils
+importlib.reload(jutils)
+from jutils import *
+
+# inspect latest batch (related works)
+view_xl((tresp.mutate(row_nbr = ibis.row_number())
+ .order_by(desc(_.row_nbr))
+ .limit(160)
+ .filter(_.relevance > 0.5, _.methodology == 'quantitative')).execute())
+
+
+# ** qualitative texts
+# also look at methodology counts
+tresp.group_by('methodology').aggregate(nbr = _.methodology.count())
+
+# look at semi-quantitative texts
+view_xl(tresp.filter(_.methodology != 'quantitative', _.methodology.ilike('%quantitative%')).execute())
+view_xl(tresp.filter(_.methodology.ilike('%mixed%')).execute())
+
+d_qual = tresp.filter(_.methodology.ilike('%qualitative%'), _.relevance > 0.8)
+
+
+t_cree_qual = move_tbl_to_ch(d_qual, 'temp_cree_qual')
+
+
+d_qual2 = (tw.filter(tw.id.isin(t_cree_qual.key))
+           .join(t_cree_qual, tw.id == t_cree_qual.key)
+           .order_by(_.cited_by_count.desc()))
+
+view_xl(d_qual2.select(_.id, _.display_name, _.abstract_text, _.cited_by_count,
+                       _.publication_year, _.discipline).limit(100).execute())
+
+
+
+
+xx = dcree['abstract_text'].to_list()
+
 
 
 
