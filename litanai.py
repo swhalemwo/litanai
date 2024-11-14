@@ -16,6 +16,7 @@ import json
 import tiktoken
 import re
 import sqlite3
+import time
 from jutils import *
 from globs import *
 
@@ -235,6 +236,7 @@ def qry_oai_assess (key, prompt, text_to_query, proj_name):
     dt_res = pd.DataFrame([res_json])
     dt_res.insert(0, "key", key)
     dt_res.insert(1, "text", text_to_query)
+    dt_res.insert(6, "timestamp", time.time())
 
     write_to_db(dt_res, table_name = proj_name)
 

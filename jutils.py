@@ -93,7 +93,7 @@ def view_xl(data, browser_xl="libreoffice"):
         #     subprocess.run([browser_xl, tmp.name])
 
 
-def move_tbl_to_ch(tbl, name):
+def move_tbl_to_ch(tbl, name, con = con):
     """move table (e.g. from sqlite) to clickhouse and return the CH table object"""
     con.create_table(name, schema = tbl.schema(), overwrite = True)
     con.insert(name, tbl.execute())
