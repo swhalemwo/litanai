@@ -1150,12 +1150,34 @@ view_xl(d_qual2.select(_.id, _.display_name, _.abstract_text, _.cited_by_count,
                        _.publication_year, _.discipline).limit(100).execute())
 
 
+# ** get texts about exhibition on careers
+
+tw.filter(tw.abstract_text.ilike('%exhibition%'),
+          tw.abstract_text.ilike('%career%'),
+          tw.abstract_text.ilike('%artist%')).count()
 
 
-xx = dcree['abstract_text'].to_list()
+view_xl(tresp.filter(_.timestamp > 1, _.methodology == 'quantitative').execute())
+
+t_cree_qual = move_tbl_to_ch(tresp.filter(_.timestamp > 1, _.methodology != 'quantitative'), "temp_cree_qual")
+
+t_qual2 = (tw.filter(tw.id.isin(t_cree_qual.key))
+ .join(t_cree_qual, tw.id == t_cree_qual.key)
+ .order_by(_.cited_by_count.desc()))
 
 
+view_xl(t_qual2.select(_.id, _.display_name, _.abstract_text, _.cited_by_count,
+               _.publication_year, _.discipline).limit(100).execute())
 
+# ** get dois for relevant lit
+
+t_cree = gt_cree()
+
+view_xl((tw.filter(tw.id.isin(t_cree.work_id))
+         .inner_join(t_cree.filter(_.bibtex_id.isnull()), _.id == t_cree.work_id)
+         .select(_.id, _.doi, _.display_name, _.type, _.cited_by_count)).execute())
+ 
+ 
 
 # * link my bibtex to OA
 

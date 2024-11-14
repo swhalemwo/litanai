@@ -637,6 +637,8 @@ def gd_journals(l_works) :
         
 # * query database
 
+# ** get works based on search strings
+
 # search_strings_career = ['%career%', '%life-course%', '%lifecourse%']
 # search_strings_subject = ['%artist%', '%musician%', '%poet%', '%painter%']
 # search_strings_outcome = ['%recogni%', '%reputation%', '%consecrat%', '%canoniz%']
@@ -648,21 +650,29 @@ def gd_journals(l_works) :
 #        .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
 #        # .filter(_.cited_by_count > 5))
 
-raise RuntimeError("it's time to stop.")
+# raise RuntimeError("it's time to stop.")
 
-# get works related (according to OA) to relevant works 
+# ** get works related (according to OA) to relevant works 
 
-tcree = gt_cree()
-twrw = con.table("works_related_works")
+# tcree = gt_cree()
+# twrw = con.table("works_related_works")
 
 
-# get unique related ones
-qry_relw = (twrw.filter(twrw.work_id.isin(tcree.work_id))
- .select(_.related_work_id).distinct())
+# # get unique related ones
+# qry_relw = (twrw.filter(twrw.work_id.isin(tcree.work_id))
+#  .select(_.related_work_id).distinct())
  
-qry_relw.count()
+# qry_relw.count()
 
-qry = (tw.filter(tw.id.isin(qry_relw.related_work_id)) #  get related that exists
+# qry = (tw.filter(tw.id.isin(qry_relw.related_work_id)) #  get related that exists
+#        .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
+
+# ** get works about exhibition, career, artist
+
+qry = (tw.filter(tw.abstract_text.ilike(['%exhibition%', '%museum%', '%display%']),
+                 tw.abstract_text.ilike(['%career%', '%auction%']),
+                 tw.abstract_text.ilike('%artist%'))
+       # .count())
        .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
 
 
