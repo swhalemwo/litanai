@@ -62,6 +62,8 @@ def gd_bibtex() :
 def parse_pdf_pymupdf (docpath):
     "parse pdf text with pymupdf"
 
+    print(docpath)
+
     doc = pymupdf.open(DIR_LIT + docpath)
 
     l_pages = []
@@ -127,9 +129,30 @@ def gen_initial_db (client) :
 
     client.insert_df('littext', df_text)
 
+def update_littext_db ():
 
+    DIR_LIT = "/home/johannes/Dropbox/readings/"
+    tl = con.table('littext')
 
+    # existing texts
+    l_xt = tl.select('key').execute()['key'].to_list()
 
+    # existing pdfs
+    l_pdfs = [f for f in os.listdir(DIR_LIT) if f[-4:] == ".pdf"]
+    
+    l_new_pdfs = list(set(list_pdfs) - set(l_xt))
+    
+    # print(len(l_new_pdfs))
+
+    l_txt_pymupdf = lmap(parse_pdf_pymupdf, l_new_pdfs)
+
+    df_text = pd.DataFrame({'key': l_new_pdfs,
+                            'key2': lmap(lambda x: x.replace('.pdf', ''), l_new_pdfs),
+                            'text': l_txt_pymupdf})
+
+    con.insert('littext', df_text)
+
+    # return(df_text)
 
 
 # client.command("CREATE DATABASE litanai")

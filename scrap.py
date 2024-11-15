@@ -1176,6 +1176,17 @@ t_cree = gt_cree()
 view_xl((tw.filter(tw.id.isin(t_cree.work_id))
          .inner_join(t_cree.filter(_.bibtex_id.isnull()), _.id == t_cree.work_id)
          .select(_.id, _.doi, _.display_name, _.type, _.cited_by_count)).execute())
+
+# ** get some summary stats for main lit
+
+t_cree = gt_cree()
+
+qry = (tw.filter(tw.id.isin(t_cree.work_id))
+ .inner_join(t_cree, _.id == t_cree.work_id)
+ .group_by(_.source_id).aggregate(nbr = _.id.count()).order_by(_.nbr.desc())
+ .inner_join(tsrc, _.source_id == tsrc.id))
+ 
+print(ibis.to_sql(qry))
  
  
 
