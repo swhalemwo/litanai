@@ -109,8 +109,13 @@ def move_tbl_to_ch(tbl, name, con_ch):
         tx (ibis.expr.types.relations.Table): Table in Clickhouse.
     """
 
-
-    con.create_table(name, schema = tbl.schema(), overwrite = True)
-    con.insert(name, tbl.execute())
+    if isinstance(tbl, ibis.expr.types.relations.Table):
+        tbl_to_insert = tbl.execute()
+        con.create_table(name, schema = tbl.schema(), overwrite = True)
+        con.insert(name, tbl_to_insert)
+    elif isinstance(tbl, pd.DataFrame):
+        
+        con.create_table(name, tbl, overwrite = True)
+    
     tx = con.table(name)
     return(tx)
