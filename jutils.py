@@ -93,8 +93,19 @@ def view_xl(data, browser_xl="libreoffice"):
         #     subprocess.run([browser_xl, tmp.name])
 
 
-def move_tbl_to_ch(tbl, name, con = con):
-    """move table (e.g. from sqlite) to clickhouse and return the CH table object"""
+def move_tbl_to_ch(tbl, name, con_ch):
+    """
+    Inserts ibis table (or rather, query; e.g. from sqlite) to clickhouse, and returns the CH table object
+
+    Parameters:
+        tbl (ibis.expr.types.relations.Table): Ibis table to be moved to Clickhouse.
+        name (str): Name of the table in Clickhouse.
+        con_ch (ibis.client.Client): Connection to Clickhouse.    
+    Returns:
+        tx (ibis.expr.types.relations.Table): Table in Clickhouse.
+    """
+
+
     con.create_table(name, schema = tbl.schema(), overwrite = True)
     con.insert(name, tbl.execute())
     tx = con.table(name)

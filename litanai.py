@@ -131,8 +131,9 @@ def gen_initial_db (client) :
 
 def update_littext_db ():
 
-    DIR_LIT = "/home/johannes/Dropbox/readings/"
-    tl = con.table('littext')
+    con_ch = ibis.connect("clickhouse://localhost/litanai")
+
+    tl = con_ch.table('littext')
 
     # existing texts
     l_xt = tl.select('key').execute()['key'].to_list()
@@ -140,17 +141,18 @@ def update_littext_db ():
     # existing pdfs
     l_pdfs = [f for f in os.listdir(DIR_LIT) if f[-4:] == ".pdf"]
     
-    l_new_pdfs = list(set(list_pdfs) - set(l_xt))
+    l_new_pdfs = list(set(l_pdfs) - set(l_xt))
     
-    # print(len(l_new_pdfs))
+    print(len(l_new_pdfs))
 
     l_txt_pymupdf = lmap(parse_pdf_pymupdf, l_new_pdfs)
 
     df_text = pd.DataFrame({'key': l_new_pdfs,
                             'key2': lmap(lambda x: x.replace('.pdf', ''), l_new_pdfs),
                             'text': l_txt_pymupdf})
+    print(df_text.shape)
 
-    con.insert('littext', df_text)
+    con_ch.insert('littext', df_text)
 
     # return(df_text)
 
@@ -350,6 +352,7 @@ def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
 
 # ** private museum influence
 
+# update_littext_db()
 
 # qry_oai(dt_reltexts['key'][0], prompt_oai, dt_reltexts['text'][0])
 
