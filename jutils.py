@@ -22,6 +22,10 @@ def split_list (list_ts, max_sublist_len):
 def ngdci(a: str, b:str) -> float:
     ...
 
+@ibis.udf.scalar.builtin(name="countSubstringsCaseInsensitive")
+def count_substrings_ci(a :str, b:str) -> int:
+    ...
+
 
 def print_first_elements(obj, n=5):
     """Print the first n elements of a given object."""
