@@ -631,6 +631,53 @@ def gd_journals(l_works) :
     return(ls_ids)
 
 
+def gl_new_journals_from_bib():
+    """
+    Gets journals which have articles in the references databases and haven't been downloaded yet
+    Returns:
+        list: list of journal ids
+    """
+
+    dt_bibtex = gd_bibtex()
+
+    tlit = move_tbl_to_ch(dt_bibtex, 'temp_bibtex', con)
+    tlit.filter(_.doi.notnull()).select('key', 'doi')
+
+    tlit_doi = (tlit.filter(_.doi.notnull())
+                .select(_.key,
+                        doi = ibis.ifelse(_.doi.ilike('https://doi.org/%'), _.doi,
+                                          'https://doi.org/' + _.doi)))
+
+    # check that this looks good
+    # (tlit_doi.mutate(doi_start = _.doi.substr(0, 16))
+    #  .group_by(_.doi_start)
+    #  .aggregate(cnt = _.doi.count()))
+
+    tlit_fltrd = tlit_doi.filter(_.doi.notin(tw.doi))
+
+    l_doi = tlit_fltrd.execute()['doi'].to_list()
+
+    # get works
+    # lw = lmap(lambda x: try: Works()[x] except: [], l_doi)
+
+    lw = []
+    for d in l_doi:
+        try:
+            lw.append(Works()[d])
+        except:
+            pass
+    
+    # get sources
+    l_src = list(set(gd_journals(list(set(lmap(lambda x: x['id'], lw))))))
+
+    # get existing journals
+    t_xj = tw.filter(tw.source_id.isin(l_src)).group_by('source_id').aggregate(nbr = _.source_id.count())
+    l_xj = t_xj.execute()['source_id'].to_list()
+
+    l_journals_to_dl = list(set(l_src) - set(l_xj))
+
+    return(l_journals_to_dl)
+
 
 
         
@@ -687,8 +734,8 @@ return these values as a json-dictionary with the keys 'relevance', 'discipline'
 the text follows below: 
 """
 
-dt_reltexts = gd_reltexts(str(ibis.to_sql(qry)))
-dx = litanai(dt_reltexts, prompt_oai, qry_oai_assess, "cree_find", False)
+# dt_reltexts = gd_reltexts(str(ibis.to_sql(qry)))
+# dx = litanai(dt_reltexts, prompt_oai, qry_oai_assess, "cree_find", False)
 
 
 # * download all journal info
@@ -705,7 +752,10 @@ dx = litanai(dt_reltexts, prompt_oai, qry_oai_assess, "cree_find", False)
 # print(len(l_journals))
 # [proc_journal_dispatch(j, "never") for j in l_journals]
 
-# [proc_journal_dispatch(j, "only_fresh") for j in l_journals]
+l_journals = gl_new_journals_from_bib()
+[proc_journal_dispatch(j, "only_fresh") for j in l_journals]
+
+
 
 # * ingest new journals
 

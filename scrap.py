@@ -1187,11 +1187,28 @@ qry = (tw.filter(tw.id.isin(t_cree.work_id))
  .inner_join(tsrc, _.source_id == tsrc.id))
  
 print(ibis.to_sql(qry))
+
+tl = con.table('littext')
+tl.mutate(nbr_museum = count_substrings_ci(_.text, 'museum')).execute()
  
  
 
 # * link my bibtex to OA
 
-dt_bibtex = gd_bibtex()
+
 
 dt_bibtex['title']
+
+# * update new journals
+
+
+
+gl_new_journals_from_bib()
+
+
+lmap(len,lw)
+
+lw[0]['primary_location']['source']['display_name']
+
+
+
