@@ -98,25 +98,27 @@ def view_xl(data, browser_xl="libreoffice"):
         #     subprocess.run([browser_xl, tmp.name])
 
 
-def move_tbl_to_ch(tbl, name, con_ch):
+def move_tbl_to_conn(tbl, name, conn):
     """
-    Inserts ibis table (or rather, query; e.g. from sqlite) to clickhouse, and returns the CH table object
+    Inserts ibis table (or rather, query; e.g. from sqlite) to another database backend,
+    and returns the ibis table object
 
     Parameters:
         tbl (ibis.expr.types.relations.Table): Ibis table to be moved to Clickhouse.
         name (str): Name of the table in Clickhouse.
-        con_ch (ibis.client.Client): Connection to Clickhouse.    
+        conn (ibis.client.Client): Connection to a database backend.    
     Returns:
-        tx (ibis.expr.types.relations.Table): Table in Clickhouse.
+        tx (ibis.expr.types.relations.Table): Table in database backend.
     """
 
     if isinstance(tbl, ibis.expr.types.relations.Table):
         tbl_to_insert = tbl.execute()
-        con_ch.create_table(name, schema = tbl.schema(), overwrite = True)
-        con_ch.insert(name, tbl_to_insert)
+        conn.create_table(name, schema = tbl.schema(), overwrite = True)
+        conn.insert(name, tbl_to_insert)
     elif isinstance(tbl, pd.DataFrame):
         
-        con_ch.create_table(name, tbl, overwrite = True)
+        conn.create_table(name, tbl, overwrite = True)
     
-    tx = con_ch.table(name)
+    tx = conn.table(name)
     return(tx)
+
