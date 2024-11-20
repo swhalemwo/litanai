@@ -275,8 +275,13 @@ def edit_db(dataframe, table_name, db_name='openai_responses.db'):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 
+    # get columns which are in database
+    l_cols_in_db = set(lmap(lambda c :c[1], cursor.execute(f"PRAGMA table_info({table_name})").fetchall()))
+
     # get fields to update
-    l_keys_to_update = list(set(dataframe.columns) - set(['key']))
+    l_keys_to_update = list(set(dataframe.columns).intersection(l_cols_in_db) - set(['key']))
+
+        
     # get values to update
     l_new_vlus = list(dataframe[l_keys_to_update].iloc[0]) # FIXME: this seems to work only for single rows
     
@@ -287,7 +292,7 @@ def edit_db(dataframe, table_name, db_name='openai_responses.db'):
 
     update_query = f"UPDATE {table_name} SET {str_inserts} WHERE key = ?"
     print(update_query)
-    xx = cursor.execute(update_query, (*l_new_vlus, dataframe['key'][0]))
+    cursor.execute(update_query, (*l_new_vlus, dataframe['key'][0]))
 
     conn.commit()
     conn.close()
@@ -315,9 +320,19 @@ def qry_oai_assess (key, prompt, text_to_query, proj_name):
     dt_res = pd.DataFrame([res_json])
     dt_res.insert(0, "key", key)
     dt_res.insert(1, "text", text_to_query)
-    dt_res.insert(6, "timestamp", time.time())
+    dt_res.insert(len(dt_res.columns), "timestamp", time.time())
 
-    write_to_db(dt_res, table_name = proj_name)
+    
+    
+    conn = sqlite3.connect("openai_responses.db")
+    cursor = conn.cursor()
+    l_keys_in_db = [row[0] for row in cursor.execute(f"SELECT key FROM {proj_name}").fetchall()]
+    
+    if key in l_keys_in_db:
+        edit_db(dt_res, table_name = proj_name)
+    else:
+        write_to_db(dt_res, table_name = proj_name)
+        
 
     return(dt_res)
 
@@ -411,3 +426,7 @@ def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
 # qry_oai(dt_reltexts['key'][0], prompt_oai, dt_reltexts['text'][0])
 
 # qry_oai('somekey', "you look at a text that contains some words. return all words that refer to colors. put them in a json list", "red apple blue car dragon")
+
+# qry_oai_assess('zzz', "you look at a text that contains some words. return the color. put it in a json dict with key 'color'", "apple blue car tree ", "colors")
+
+# edit_db(pd.DataFrame({'key': ['zzz'], 'color' :['small']}), 'colors')
