@@ -26,6 +26,7 @@ import subprocess
 
 import ibis
 from ibis import _, desc
+ibis.options.interactive = True
 
 
 con = ibis.connect('clickhouse://localhost/litanai')
@@ -752,8 +753,8 @@ the text follows below:
 # print(len(l_journals))
 # [proc_journal_dispatch(j, "never") for j in l_journals]
 
-l_journals = gl_new_journals_from_bib()
-[proc_journal_dispatch(j, "only_fresh") for j in l_journals]
+# l_journals = gl_new_journals_from_bib()
+# [proc_journal_dispatch(j, "only_fresh") for j in l_journals]
 
 
 
