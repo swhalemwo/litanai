@@ -2,6 +2,7 @@ import ibis
 import sys
 import tempfile
 import subprocess
+import pandas as pd
 
 def debugger_is_active() -> bool:
     """Return if the debugger is currently active"""
@@ -111,11 +112,11 @@ def move_tbl_to_ch(tbl, name, con_ch):
 
     if isinstance(tbl, ibis.expr.types.relations.Table):
         tbl_to_insert = tbl.execute()
-        con.create_table(name, schema = tbl.schema(), overwrite = True)
-        con.insert(name, tbl_to_insert)
+        con_ch.create_table(name, schema = tbl.schema(), overwrite = True)
+        con_ch.insert(name, tbl_to_insert)
     elif isinstance(tbl, pd.DataFrame):
         
-        con.create_table(name, tbl, overwrite = True)
+        con_ch.create_table(name, tbl, overwrite = True)
     
-    tx = con.table(name)
+    tx = con_ch.table(name)
     return(tx)
