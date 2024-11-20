@@ -210,6 +210,17 @@ def qry_oai (key, prompt, text_to_query):
     return(res_json)
 
 def qry_oai_quotes (key, prompt, text_to_query, proj_name):
+    """
+    Query OpenAI for quotes (extracted from text) from text_to_query based on prompt.
+    writes results do sqlite database to keep track and avoid re-querying after crash.
+    Parameters:
+        key (str): Identifier for the text.
+        prompt (str): Prompt to send to OpenAI.
+        text_to_query (str): Text to query.
+        proj_name (str): Name of the project to save results.
+        Returns:
+        dt_res (pd.DataFrame): DataFrame with the results.
+    """
 
     res_json = qry_oai(key, prompt, text_to_query)
 
@@ -250,8 +261,51 @@ def write_to_db(dataframe, table_name, db_name='openai_responses.db'):
     # Close the connection
     conn.close()
     
+def edit_db(dataframe, table_name, db_name='openai_responses.db'):
+    """
+    Edits a DataFrame in an SQLite database.
+
+    Parameters:
+        dataframe (pd.DataFrame): The DataFrame to write to the database.
+        db_name (str): The name of the SQLite database file.
+        table_name (str): The name of the table to write data to.
+    """
+    # breakpoint()
+
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+
+    # get fields to update
+    l_keys_to_update = list(set(dataframe.columns) - set(['key']))
+    # get values to update
+    l_new_vlus = list(dataframe[l_keys_to_update].iloc[0]) # FIXME: this seems to work only for single rows
+    
+    
+    l_inserts = lmap(lambda x: f"{x} = ?", l_keys_to_update)
+    str_inserts = ", ".join(l_inserts)
+
+
+    update_query = f"UPDATE {table_name} SET {str_inserts} WHERE key = ?"
+    print(update_query)
+    xx = cursor.execute(update_query, (*l_new_vlus, dataframe['key'][0]))
+
+    conn.commit()
+    conn.close()
+
 
 def qry_oai_assess (key, prompt, text_to_query, proj_name):
+    """
+    Query OpenAI for assessment of text_to_query based on prompt.
+    Saves results to sqlite database to keep track and avoid re-querying after crash.
+    Parameters:
+        key (str): Identifier for the text.
+        prompt (str): Prompt to send to OpenAI.
+        text_to_query (str): Text to query.
+        proj_name (str): Name of the project to save results.
+    Returns:
+        dt_res (pd.DataFrame): DataFrame with the results.
+    """
+    
     
     
     # breakpoint()
