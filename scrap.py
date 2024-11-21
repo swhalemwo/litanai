@@ -1239,41 +1239,110 @@ qry_papers = (tw.filter(tw.abstract_text.ilike(['%late career%', '%late-career%'
 qry_papers.count()
 
 
-# * get methodologies
+
+# * db setup of fields as updatable
 
 t_cree = gt_cree()
-tlit = con.table('littext')
 
-# get abstract text and full text
-
-# right join seems to be cheaper for large table
-qry = (tw.select('id', 'title', 'abstract_text').right_join(t_cree, tw.id == t_cree.work_id)
- .left_join(tlit, _.bibtex_id == tlit.key2))
-
+conch = ibis.connect('clickhouse://localhost/litanai')
 conlite = ibis.connect('sqlite://openai_responses.db')
-t_cree_lit = move_tbl_to_ch(qry, "cree_lit", conlite)
-
+tlit = conch.table('littext')
 t_cree_lit = conlite.table('cree_lit')
 
-# need to update lit: but needs to be with update table to not yeet results
-# additions to lit_infl (t_cree) need to be handled
-temp_creelit_ch = move_tbl_to_conn(t_cree_lit, "temp_creelit", con)
-
-qry_addgns = qry.anti_join(temp_creelit_ch, [qry.id == temp_creelit_ch.id, qry.text == temp_creelit_ch.text])
-
-# could either delete rows, and re-add, or update rows -> decide tomorrow
-
-
-conlite.insert('cree_lit', qry_addgns.execute(), overwrite = False)
-
-# also need to handle deletions, e.g. if something is not relevant
+# test updates of hard-coded fields, seems to work good
+mb_static_fields(t_cree_lit, conch, conlite)
 
 
 
-qry
-t_cree_lit.filter(_.text.length() < 100).select('id', 'bibtex_id', 'title')
+dt_toadd = pd.DataFrame({'bibtex_id' : ['goldberg2011mapping','Hsu_2015_granted'],
+                         'work_id' : ['https://openalex.org/W2013002430', 'https://openalex.org/W2086687687']})
 
-tresp = conlite.table('cree_find')
-tresp.filter(_.key == "https://openalex.org/W3045500429").execute()['text'].to_list()
+conlite.insert('cree_lit', dt_toadd, overwrite = False)
+write_to_db(dt_toadd, 'cree_lit')
 
 
+# test "version control", seems to work ok
+    
+vc_dbtbl(t_cree_lit)
+
+
+# * get methodologies
+
+import inspect
+
+class magic_fstring_function:
+    def __init__(self, payload):
+        self.payload = payload
+    def __str__(self):
+        vars = inspect.currentframe().f_back.f_globals.copy()
+        vars.update(inspect.currentframe().f_back.f_locals)
+        return self.payload.format(**vars)
+
+
+def gc_litcols ():
+
+    c_litcols = {
+        'discipline' :
+        {'input' : 'abstract_text',
+         'prompt' : """what discipline is the text from? return result as json_dict with key 'discipline'.
+      text follows after this line: """},
+        'methodology':
+        {'input' : 'fulltext',
+         'prompt' : """you'll read an academic text and have to determine the methodology,
+         such as quantitative, qualitative, mixed methods, or else. return a json_dict with
+         the keys 'methodology' (the methodlogy), and 'methdology_certainty'
+         (how certain you are in the classification on a scale from 0 to 1)
+         text follows below:"""}
+    }
+
+    return(c_litcols)
+
+
+
+
+def update_col (t_cree_lit, colname, head = False):
+
+    # select input colums: pd df
+    # breakpoint()
+
+    # FIXME: so far supports only single text, which is pasted on the end of the prompt
+    
+    c_col = gc_litcols()[colname]
+
+    # input_cols, output_col, prompt
+
+    dtx = t_cree_lit.select(['bibtex_id', "hash_" + colname ] + [c_col['input']]).execute()
+    table_name = t_cree_lit.get_name()
+
+    
+    if head:
+        dtx = dtx.head()
+        dtx = dtx.iloc[0:3]
+        
+        
+    for index, row in dtx.iterrows():
+        print(row)
+
+        # hashlib.sha256(('hello' + 'world').encode('utf-8')).hexdigest()
+        new_hash = hashlib.sha256((c_col['prompt'] + row[c_col['input']]).encode('utf-8')).hexdigest()
+
+        if new_hash == row["hash_" + colname]:
+            continue
+        
+        res_json = qry_oai(row['bibtex_id'], c_col['prompt'], row[c_col['input']])
+        dt_res = pd.DataFrame([res_json])
+        dt_res.insert(0, 'bibtex_id', row['bibtex_id'])
+        dt_res.insert(2, 'hash_' + colname, new_hash)
+        edit_db(dt_res, 'bibtex_id', table_name)
+
+    
+
+
+    
+    
+t_cree_lit = conlite.table('cree_lit')    
+update_col(t_cree_lit, 'discipline', False)
+
+update_col(t_cree_lit, 'methodology', False)
+    
+t_cree_lit.group_by('discipline').aggregate(nbr = _.discipline.count()).order_by(_.nbr.desc())
