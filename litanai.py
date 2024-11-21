@@ -416,6 +416,88 @@ def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
     print('done')
     return(dt_res_cbnd)
 
+def mb_static_fields (tbl_lit, conch, conlite):
+    """
+    get the fields that don't change, and add them to the main lit table
+
+    Parameters:
+        tbl_lit: Ibis table in sqlite, the main lit table
+        conch: Ibis connection to clickhouse
+        conlite: Ibis connection to sqlite
+    """
+
+    l_work_info = ['title', 'abstract_text'] # title and abstract text
+    l_fulltext_info = ['fulltext']   # text 
+
+    # first have to move sqlite table to CH to get fields
+    t_temp_lit_ch = move_tbl_to_conn(tbl_lit.select('bibtex_id', 'work_id'), "temp_lit", conch)
+    
+    qry = (tw.select(work_id = 'id', title = 'title', abstract_text = 'abstract_text')
+           .right_join(t_temp_lit_ch, 'work_id')
+           .select(bibtex_id = 'bibtex_id', work_id = 'work_id_right',
+                   title = 'title', abstract_text = 'abstract_text') # renaming for comfyness
+           .left_join(tlit.select(fulltext = 'text', bibtex_id = 'key2'), 'bibtex_id')
+           .drop('bibtex_id_right'))
+
+    # move result to sqlite temp table
+    t_temp_lit_lite = move_tbl_to_conn(qry, "temp_lit_lite", conlite)
+    conch.drop_table('temp_lit') # drop the CH table
+
+    ## merge tbl_lit with t_temp_lit_lite
+    name_main = tbl_lit.get_name()
+    name_temp = t_temp_lit_lite.get_name()
+
+    # create new columns if required
+    cols_required = ['title', 'abstract_text', 'fulltext']
+    tbl_lit = conlite.table(name_main)
+    cols_already_there = tbl_lit.columns
+    cols_to_add = set(cols_required) - set(cols_already_there)
+
+    lmap(lambda x:conlite.raw_sql(f"ALTER TABLE {name_main} ADD COLUMN {x} STRING").close(), cols_to_add)
+    
+    # update main table
+    cmd_update = f"""update {name_main}
+    set title = (select title from {name_temp} where {name_main}.bibtex_id = {name_temp}.bibtex_id),
+    abstract_text = (select abstract_text from {name_temp}
+    where {name_main}.bibtex_id = {name_temp}.bibtex_id),
+    fulltext = (select fulltext from {name_temp} where {name_main}.bibtex_id = {name_temp}.bibtex_id)
+    where exists (select 1 from {name_temp} where {name_main}.bibtex_id = {name_temp}.bibtex_id);
+    """
+
+    ## update main table, need to use sqlite3 for some reason
+    conn = sqlite3.connect("openai_responses.db")
+    cursor = conn.cursor()
+
+    cursor.execute(cmd_update)
+
+    conn.commit()
+    cursor.close()
+    
+    # FIXME: check for missing fields, so far manually, should be automated
+    # qry.filter(_.work_id != _.work_id_right)
+    # qry.filter(_.work_id == "not_there")
+
+    # FIXME: check for missing fulltext, so far manually, should be automated
+    # qry.filter(_.bibtex_id != _.bibtex_id_right).select('bibtex_id', 'bibtex_id_right', 'title')
+
+
+def vc_dbtbl (tbl) :
+    """
+    export tbl to csv and version control"
+
+    Parameters:
+        tbl: Ibis table expression
+    """
+    # breakpoint()
+    
+    tbl_name = tbl.get_name()
+    csv_file = f"~/Dropbox/phd/papers/infl/lit/{tbl_name}.csv"
+    tbl.to_csv(csv_file)
+
+    # pd.read_csv(csv_file).columns
+    
+    
+
 
 # if __name__ == "__main__":
 
@@ -432,4 +514,4 @@ def litanai (query_reltext, prompt_oai, qry_fun, proj_name, head):
 
 # qry_oai_assess('zzz', "you look at a text that contains some words. return the color. put it in a json dict with key 'color'", "apple blue car tree ", "colors")
 
-# edit_db(pd.DataFrame({'key': ['zzz'], 'color' :['small']}), 'colors')
+# edit_db(pd.DataFrame({'key': ['zzz'], 'color' :['purple']}), 'key', 'colors')
