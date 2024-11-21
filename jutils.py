@@ -64,7 +64,7 @@ def print_names(obj):
     if isinstance(obj, dict):
         print(obj.keys())
     elif isinstance(obj, ibis.expr.types.relations.Table):
-        print(obj.schema())
+        print(obj.info())
     elif isinstance(obj, pd.core.frame.DataFrame):
         print(obj.columns)
     else:
