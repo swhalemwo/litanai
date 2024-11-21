@@ -261,12 +261,15 @@ def write_to_db(dataframe, table_name, db_name='openai_responses.db'):
     # Close the connection
     conn.close()
     
-def edit_db(dataframe, table_name, db_name='openai_responses.db'):
+def edit_db(dataframe, keycol, table_name, db_name='openai_responses.db'):
     """
     Edits a DataFrame in an SQLite database.
+    updates the values of all the columns in the database that are in the dataframe
+    (except keycol, which is used for joining)
 
     Parameters:
         dataframe (pd.DataFrame): The DataFrame to write to the database.
+        keycol (str): The name of the column to use for joining.
         db_name (str): The name of the SQLite database file.
         table_name (str): The name of the table to write data to.
     """
@@ -279,7 +282,7 @@ def edit_db(dataframe, table_name, db_name='openai_responses.db'):
     l_cols_in_db = set(lmap(lambda c :c[1], cursor.execute(f"PRAGMA table_info({table_name})").fetchall()))
 
     # get fields to update
-    l_keys_to_update = list(set(dataframe.columns).intersection(l_cols_in_db) - set(['key']))
+    l_keys_to_update = list(set(dataframe.columns).intersection(l_cols_in_db) - set([keycol]))
 
         
     # get values to update
@@ -288,11 +291,11 @@ def edit_db(dataframe, table_name, db_name='openai_responses.db'):
     
     l_inserts = lmap(lambda x: f"{x} = ?", l_keys_to_update)
     str_inserts = ", ".join(l_inserts)
+    
 
-
-    update_query = f"UPDATE {table_name} SET {str_inserts} WHERE key = ?"
+    update_query = f"UPDATE {table_name} SET {str_inserts} WHERE {keycol} = ?"
     print(update_query)
-    cursor.execute(update_query, (*l_new_vlus, dataframe['key'][0]))
+    cursor.execute(update_query, (*l_new_vlus, dataframe[keycol][0]))
 
     conn.commit()
     conn.close()
