@@ -1211,4 +1211,69 @@ lmap(len,lw)
 lw[0]['primary_location']['source']['display_name']
 
 
+# * look into other topics
+
+# ** social capital test
+
+qry_papers = (tw.filter(tw.abstract_text.ilike('%social capital%'),
+                        tw.abstract_text.ilike('%nequal%')))
+
+qry_journals = (qry_papers.group_by('source_id')
+     .aggregate(cnt = _.id.count())
+     .join(tsrc, _.source_id == tsrc.id)
+     .order_by(_.cnt.desc()))
+
+x = qry_journals.execute()
+ 
+ 
+x.execute()['display_name'].to_list()[0:30]
+
+(qry_papers.filter(_.source_id == 'https://openalex.org/S4306401271').
+ order_by(_.cited_by_count.desc()).select('display_name', 'cited_by_count'))
+
+# select('display_name')
+
+# ** late career penalty
+
+qry_papers = (tw.filter(tw.abstract_text.ilike(['%late career%', '%late-career%', '%later career%', '%senior career%', '%end of career%', '%end-of-career%', '%advanced career%'])))
+qry_papers.count()
+
+
+# * get methodologies
+
+t_cree = gt_cree()
+tlit = con.table('littext')
+
+# get abstract text and full text
+
+# right join seems to be cheaper for large table
+qry = (tw.select('id', 'title', 'abstract_text').right_join(t_cree, tw.id == t_cree.work_id)
+ .left_join(tlit, _.bibtex_id == tlit.key2))
+
+conlite = ibis.connect('sqlite://openai_responses.db')
+t_cree_lit = move_tbl_to_ch(qry, "cree_lit", conlite)
+
+t_cree_lit = conlite.table('cree_lit')
+
+# need to update lit: but needs to be with update table to not yeet results
+# additions to lit_infl (t_cree) need to be handled
+temp_creelit_ch = move_tbl_to_conn(t_cree_lit, "temp_creelit", con)
+
+qry_addgns = qry.anti_join(temp_creelit_ch, [qry.id == temp_creelit_ch.id, qry.text == temp_creelit_ch.text])
+
+# could either delete rows, and re-add, or update rows -> decide tomorrow
+
+
+conlite.insert('cree_lit', qry_addgns.execute(), overwrite = False)
+
+# also need to handle deletions, e.g. if something is not relevant
+
+
+
+qry
+t_cree_lit.filter(_.text.length() < 100).select('id', 'bibtex_id', 'title')
+
+tresp = conlite.table('cree_find')
+tresp.filter(_.key == "https://openalex.org/W3045500429").execute()['text'].to_list()
+
 
