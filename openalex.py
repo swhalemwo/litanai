@@ -248,7 +248,16 @@ def ingest_csv(DIR_CSV, l_entities) :
 
 
 def ingest_dispatcher(l_entities, l_entities_to_ingest, switch_ingest, b_data_fresh, func_flatten):
-    "flatten and ingest depending on switches"
+    """
+    flatten and ingest depending on switches
+
+    Parameters:
+        l_entities: list of entities to be ingested
+        l_entities_to_ingest: list of entities to be ingested
+        switch_ingest: whether to ingest or not
+        b_data_fresh: whether the data is fresh
+        func_flatten: function to flatten the entities
+    """
 
     if (switch_ingest == "only_fresh" and b_data_fresh == True) or (switch_ingest == 'always'):
         print("flattening papers to csv")
@@ -763,3 +772,11 @@ the text follows below:
 # ingest_new_journals()
 
 
+# * download single works
+
+# l_works = ['https://openalex.org/W618036604', 'https://openalex.org/W4240439380']
+
+# l_works = Works()[l_works]
+
+# flatten_works(l_works)
+# ingest_dispatcher(l_works, ['works', 'works_related_works', 'works_referenced_works'], 'always', True, flatten_works)
