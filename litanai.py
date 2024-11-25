@@ -19,6 +19,7 @@ import sqlite3
 import time
 from jutils import *
 from globs import *
+import hashlib
 
 def get_secret(secret):
     return(
@@ -496,6 +497,74 @@ def vc_dbtbl (tbl) :
 
     # pd.read_csv(csv_file).columns
     
+    
+
+def update_col (tbl, colname, head = False):
+    """
+    update a column in the lit table with openai queries
+
+    Parameters:
+        tbl: Ibis table expression for the lit table
+        colname: name of the column to update
+        head: flag to use only first entries (for debugging)
+
+    Returns:
+        nothing: updates the table in place as side-effect
+    """
+
+    # select input colums: pd df
+    # breakpoint()
+
+    # FIXME: so far supports only single text, which is pasted on the end of the prompt
+    
+    c_col = gc_litcols()[colname]
+
+    # input_cols, output_col, prompt
+
+    dtx = tbl.select(['bibtex_id', "hash_" + colname ] + [c_col['input']]).execute()
+    
+    table_name = get_qry_src(tbl)
+
+    
+    if head:
+        dtx = dtx.head()
+        dtx = dtx.iloc[0:3]
+        
+        
+    for index, row in dtx.iterrows():
+        print(row)
+
+        # hashlib.sha256(('hello' + 'world').encode('utf-8')).hexdigest()
+        new_hash = hashlib.sha256((c_col['prompt'] + row[c_col['input']]).encode('utf-8')).hexdigest()
+
+        if new_hash == row["hash_" + colname]:
+            continue
+        
+        res_json = qry_oai(row['bibtex_id'], c_col['prompt'], row[c_col['input']])
+        dt_res = pd.DataFrame([res_json])
+        dt_res.insert(0, 'bibtex_id', row['bibtex_id'])
+        dt_res.insert(2, 'hash_' + colname, new_hash)
+        edit_db(dt_res, 'bibtex_id', table_name)
+
+    
+
+def get_qry_src(qry: ibis.expr.types.relations.Table) -> str:
+    """
+    Get the source name of an ibis table expression
+    Parameters:
+        qry: ibis.expr.types.relations.Table
+    Returns:
+        string of the first table name in the expression
+    """
+        
+    match = re.search(r'FROM\s+"?(\w+)"', qry.compile(), re.IGNORECASE)
+
+    if match:
+        table_name = match.group(1)  # Extracting the first capturing group
+    else:
+        ValueError("No table name found in expression")
+
+    return(table_name)
     
 
 

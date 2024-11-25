@@ -11,3 +11,13 @@ def convert_dld_file (id_short):
     l_entities = 0
     gc.collect()
     
+
+import inspect
+
+class magic_fstring_function:
+    def __init__(self, payload):
+        self.payload = payload
+    def __str__(self):
+        vars = inspect.currentframe().f_back.f_globals.copy()
+        vars.update(inspect.currentframe().f_back.f_locals)
+        return self.payload.format(**vars)
