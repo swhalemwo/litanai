@@ -1244,10 +1244,7 @@ qry_papers.count()
 
 t_cree = gt_cree()
 
-conch = ibis.connect('clickhouse://localhost/litanai')
-conlite = ibis.connect('sqlite://openai_responses.db')
-tlit = conch.table('littext')
-t_cree_lit = conlite.table('cree_lit')
+# conch = ibis.connect('clickhouse://localhost/litanai')
 
 # test updates of hard-coded fields, seems to work good
 mb_static_fields(t_cree_lit, conch, conlite)
@@ -1268,15 +1265,6 @@ vc_dbtbl(t_cree_lit)
 
 # * get methodologies
 
-import inspect
-
-class magic_fstring_function:
-    def __init__(self, payload):
-        self.payload = payload
-    def __str__(self):
-        vars = inspect.currentframe().f_back.f_globals.copy()
-        vars.update(inspect.currentframe().f_back.f_locals)
-        return self.payload.format(**vars)
 
 
 def gc_litcols ():

@@ -30,9 +30,14 @@ from ibis import _, desc
 ibis.options.interactive = True
 
 
-con = ibis.connect('clickhouse://localhost/litanai')
-tw = con.table('works')
-tsrc = con.table('sources')
+conch = ibis.connect('clickhouse://localhost/litanai')
+tw = conch.table('works')
+tsrc = conch.table('sources')
+
+conlite = ibis.connect('sqlite://openai_responses.db')
+tlit = conch.table('littext')
+
+
 
 
 from globs import DIR_CSV, DIR_JOURNAL_GZIP, FILE_CAREER_PAPERS, PROJ_DIR
@@ -479,8 +484,8 @@ def ingest_new_journals ():
 
     
     ## get the journals that are already ingested
-    con = ibis.connect('clickhouse://localhost/litanai')
-    tw = con.table("works")
+    conch = ibis.connect('clickhouse://localhost/litanai')
+    tw = conch.table("works")
     l_journals_ingstd_prep1 = tw.select(_.source_id).distinct().to_pandas()['source_id'].to_list()
 
     l_journals_ingstd = set(lmap(lambda x:re.sub(r'https://openalex.org/', '', x), l_journals_ingstd_prep1))
@@ -503,13 +508,13 @@ def get_sim_journals (min_topic_cnt_ttl = 100, min_journal_topic_cnt = 25, min_t
     # min_topic_cnt_ttl: how many times a topic has to be mentioned in a journal to make it substantial
     # min_journal_topic_cnt: how many times a new journal has to have a topic to be included
     # min_topics_met: only include journals which mention at least that many of my topics
-    con = ibis.connect('clickhouse://localhost/litanai')
+    conch = ibis.connect('clickhouse://localhost/litanai')
 
     # breakpoint()
-    tmyj = con.table('bib_myj') # get my refs
-    tst = con.table('sources_topics') # get source-topic links
-    tsrc = con.table('sources') # get sources
-    tw = con.table('works')  # get works
+    tmyj = conch.table('bib_myj') # get my refs
+    tst = conch.table('sources_topics') # get source-topic links
+    tsrc = conch.table('sources') # get sources
+    tw = conch.table('works')  # get works
     txj = tw.group_by('source_id').aggregate(_.source_id.count()) # get existing journals
 
     # get the main topics of my most-used journals
@@ -572,8 +577,8 @@ def proc_sources_h_index (vlu_start, vlu_end, switch_ingest):
 
 def dl_all_the_sources() :
 
-    con = ibis.connect('clickhouse://localhost/litanai')
-    tsrc = con.table("sources")
+    conch = ibis.connect('clickhouse://localhost/litanai')
+    tsrc = conch.table("sources")
 
     qntls = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     qntl_vlus = tsrc.aggregate(qntl_border = tsrc.h_index.quantile(qntls)).execute()
@@ -651,7 +656,7 @@ def gl_new_journals_from_bib():
 
     dt_bibtex = gd_bibtex()
 
-    tlit = move_tbl_to_ch(dt_bibtex, 'temp_bibtex', con)
+    tlit = move_tbl_to_ch(dt_bibtex, 'temp_bibtex', conch)
     tlit.filter(_.doi.notnull()).select('key', 'doi')
 
     tlit_doi = (tlit.filter(_.doi.notnull())
@@ -713,7 +718,7 @@ def gl_new_journals_from_bib():
 # ** get works related (according to OA) to relevant works 
 
 # tcree = gt_cree()
-# twrw = con.table("works_related_works")
+# twrw = conch.table("works_related_works")
 
 
 # # get unique related ones
