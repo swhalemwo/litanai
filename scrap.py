@@ -1285,52 +1285,25 @@ def gc_litcols ():
 
     return(c_litcols)
 
-
-
-
-def update_col (t_cree_lit, colname, head = False):
-
-    # select input colums: pd df
-    # breakpoint()
-
-    # FIXME: so far supports only single text, which is pasted on the end of the prompt
-    
-    c_col = gc_litcols()[colname]
-
-    # input_cols, output_col, prompt
-
-    dtx = t_cree_lit.select(['bibtex_id', "hash_" + colname ] + [c_col['input']]).execute()
-    table_name = t_cree_lit.get_name()
-
-    
-    if head:
-        dtx = dtx.head()
-        dtx = dtx.iloc[0:3]
-        
-        
-    for index, row in dtx.iterrows():
-        print(row)
-
-        # hashlib.sha256(('hello' + 'world').encode('utf-8')).hexdigest()
-        new_hash = hashlib.sha256((c_col['prompt'] + row[c_col['input']]).encode('utf-8')).hexdigest()
-
-        if new_hash == row["hash_" + colname]:
-            continue
-        
-        res_json = qry_oai(row['bibtex_id'], c_col['prompt'], row[c_col['input']])
-        dt_res = pd.DataFrame([res_json])
-        dt_res.insert(0, 'bibtex_id', row['bibtex_id'])
-        dt_res.insert(2, 'hash_' + colname, new_hash)
-        edit_db(dt_res, 'bibtex_id', table_name)
-
-    
-
-
-    
     
 t_cree_lit = conlite.table('cree_lit')    
 update_col(t_cree_lit, 'discipline', False)
 
 update_col(t_cree_lit, 'methodology', False)
+
+
+def update_pycol (tbl, col_input, col_output, func)
+
     
 t_cree_lit.group_by('discipline').aggregate(nbr = _.discipline.count()).order_by(_.nbr.desc())
+
+xx = t_cree_lit.filter(_.discipline.ilike('%sociology%'))
+type(t_cree_lit)
+type(xx)
+t_cree_lit.get_name()
+xx.compile()
+
+yy = t_cree_lit.join(xx, t_cree_lit.bibtex_id == xx.bibtex_id) 
+
+get_qry_src(xx)
+get_qry_src(yy)

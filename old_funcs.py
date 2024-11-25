@@ -21,3 +21,23 @@ class magic_fstring_function:
         vars = inspect.currentframe().f_back.f_globals.copy()
         vars.update(inspect.currentframe().f_back.f_locals)
         return self.payload.format(**vars)
+
+def gt_cree ():
+
+    conch = ibis.connect('clickhouse://localhost/litanai')
+    FILE_CAREER_PAPERS
+    
+    existing_tables = [i for i in conch.tables.__iter__()]
+
+    if "cree" in existing_tables:
+        conch.drop_table("cree")
+
+    conch.create_table("cree", schema = ibis.schema({'bibtex_id' : 'string', 'work_id' : 'string'}))
+
+    dt_cree = pd.read_csv(FILE_CAREER_PAPERS)
+    conch.insert('cree', dt_cree)
+
+    tcree = conch.table('cree')
+
+    return(tcree)
+    

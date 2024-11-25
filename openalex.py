@@ -598,25 +598,6 @@ def dl_all_the_sources() :
 
 
 
-def gt_cree ():
-
-    con = ibis.connect('clickhouse://localhost/litanai')
-    FILE_CAREER_PAPERS
-    
-    existing_tables = [i for i in con.tables.__iter__()]
-
-    if "cree" in existing_tables:
-        con.drop_table("cree")
-
-    con.create_table("cree", schema = ibis.schema({'bibtex_id' : 'string', 'work_id' : 'string'}))
-
-    dt_cree = pd.read_csv(FILE_CAREER_PAPERS)
-    con.insert('cree', dt_cree)
-
-    tcree = con.table('cree')
-
-    return(tcree)
-    
 
 def gd_journals(l_works) :
     "get journals from a list of works"
