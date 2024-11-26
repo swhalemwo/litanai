@@ -1303,7 +1303,40 @@ t_cree_lit.filter(_.bibtex_id == "Liz_2016_intermediaries")
 
 t_cree_lit.filter(_.fulltext_length > 4e5).count()
 
+t_cree_lit_long = conlite.table('cree_lit_long')
 
+
+# distill the methodologies from snippets
+gen_col_multi(
+    (t_cree_lit_long
+     .filter(_.query_name == "methodology")
+     .select(bibtex_id = 'key', chunk = 'result')
+     .group_by('bibtex_id')
+     .aggregate(quotes = _.chunk.group_concat('\n\n'))),
+    'cree_lit_long', 'methodology_distilled', head = False)
+
+# analyze methodologies
+view_xl(t_cree_lit_long.filter(_.query_name == "methodology_distilled")
+ .group_by('result').aggregate(nbr = _.result.count()).order_by(_.nbr.desc()).execute())
+
+# regression papers
+(t_cree_lit_long.filter(_.query_name == "methodology_distilled", _.result.ilike('%regression%'))
+ .select(_.key).distinct()).count()
+
+# network papers
+(t_cree_lit_long.filter(_.query_name == "methodology_distilled",
+                        _.result.ilike(['%network%', '%tie%', '%block%' '%matrix%']))
+ .select(_.key).distinct()).count()
+
+
+(t_cree_lit_long.filter(_.query_name == "methodology_distilled",
+                        _.result.ilike(['%sequence%'])))
+
+(t_cree_lit_long.filter(_.query_name == "methodology_distilled",
+                        _.key == 'Giuffre_1999_sandpiles'))
+
+
+group_by('key').aggregate(_.result.length())
 
 
 

@@ -570,9 +570,15 @@ def gc_litcols ():
 
 def gc_litcols_multi ():
 
-    c_litcols_multi = {'methodology' : {
-        'prompt': """you will read a scientific text. extract all parts of it that describe the methodology, such as the process of data collection, data sources, the size of dataset or datasets, and any statistical methods used. include each section verbatim, do not rephrase or rewrite anything. return a json-compatiable list, where each text section is a separate dictionary, of which each dict has the key 'result'. so the structure should be something like this :{'methodology' : [{'result' : 'textsection1'},{'result' : 'textsection2'}]}'. The text follows below:\n""",
-        'input' : 'fulltext'}}
+    c_litcols_multi = {
+        'methodology' : {
+            'prompt': """you will read a scientific text. extract all parts of it that describe the methodology, such as the process of data collection, data sources, the size of dataset or datasets, and any statistical methods used. include each section verbatim, do not rephrase or rewrite anything. return a json-compatiable list, where each text section is a separate dictionary, of which each dict has the key 'result'. so the structure should be something like this :{'methodology' : [{'result' : 'textsection1'},{'result' : 'textsection2'}]}'. The text follows below:\n""",
+            'input' : 'fulltext'},
+        
+        'methodology_distilled' : {
+            'prompt' : """you will read a bunch of quotes about a scientific studies methodology. based on them, identify the main methodologies used in the study, such as regression modelling, cluster analysis, topic modelling, network analysis, natural language processing and so on. return a json-compatiable list, where each methodology is a separate dictionary, of which each dict has the key 'result'. so the structure should be something like this :{'methodologies' : [{'result' : 'methodology1'},{'result' : 'methodology2'}]}'. The quotes follow below:\n""",
+            'input' : 'quotes'}
+    }
 
     return(c_litcols_multi)
 
@@ -594,11 +600,14 @@ def gen_col_multi (tbl, res_tbl, query_name, head = False):
         
     else:
         l_existing_hashes = []
+
+    print(len(l_existing_hashes))
     
     if head:
         dtx = dtx.head()
         
     for index, row in dtx.iterrows():
+        # breakpoint()
         print(row)
         
         # hashlib.sha256(('hello' + 'world').encode('utf-8')).hexdigest()
