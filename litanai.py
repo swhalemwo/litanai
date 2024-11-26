@@ -340,6 +340,57 @@ def qry_oai_assess (key, prompt, text_to_query, proj_name):
 
     return(dt_res)
 
+def qry_oai_multi (key, prompt, text_to_query, query_name, proj_name):
+    """
+    Generates multiple outputs from one input and writes them to a table.
+    Parameters:
+        key (str): Identifier for the text.
+        prompt (str): Prompt to send to OpenAI.
+        text_to_query (str): Text to query.
+        query_name (str): Name of the query to use.
+        proj_name (str): Name of the project to save results.
+    Returns:
+        Nothing: works as side-effect.
+    """
+
+    # breakpoint()
+    
+
+    # tbl_res = conlite.table(proj_name)
+    # if new_hash in tbl_res['hash']:
+    #     continue
+    res_json = qry_oai(key, prompt, text_to_query)
+
+    # always use first 
+    if len(res_json.keys()) == 1:
+        res_key = list(res_json.keys())[0]
+        # sometimes key is results, sometimes just result
+        # if res_key in ['results', 'result']:
+        res_json2 = res_json[res_key]
+    else:
+        pdb.set_trace()
+        
+
+    new_hash = hashlib.sha256((prompt + text_to_query).encode('utf-8')).hexdigest()
+
+    if len(res_json2) == 0:
+        res_json2 = [{'result' : 'NULL'}]
+
+    dt_res = pd.DataFrame(res_json2)
+    dt_res.insert(0, "key", key)
+    dt_res.insert(len(dt_res.columns), "query_name", query_name)
+    dt_res.insert(len(dt_res.columns), "timestamp", time.time())
+    dt_res.insert(len(dt_res.columns), "hash", new_hash)
+
+    dt_res.reset_index(names = "index")
+
+    write_to_db(dt_res, table_name = proj_name)
+
+    
+
+
+    
+
 
 def gs_oai_prompt (topic, desc):
     "generate prompt: include extraction steps"
@@ -497,6 +548,68 @@ def vc_dbtbl (tbl) :
 
     # pd.read_csv(csv_file).columns
     
+
+
+def gc_litcols ():
+
+    c_litcols = {
+        'discipline' :
+        {'input' : 'abstract_text',
+         'prompt' : """what discipline is the text from? return result as json_dict with key 'discipline'.
+      text follows after this line: """},
+        'methodology':
+        {'input' : 'fulltext',
+         'prompt' : """you'll read an academic text and have to determine the methodology,
+         such as quantitative, qualitative, mixed methods, or else. return a json_dict with
+         the keys 'methodology' (the methodlogy), and 'methdology_certainty'
+         (how certain you are in the classification on a scale from 0 to 1)
+         text follows below:"""}
+    }
+
+    return(c_litcols)
+
+def gc_litcols_multi ():
+
+    c_litcols_multi = {'methodology' : {
+        'prompt': """you will read a scientific text. extract all parts of it that describe the methodology, such as the process of data collection, data sources, the size of dataset or datasets, and any statistical methods used. include each section verbatim, do not rephrase or rewrite anything. return a json-compatiable list, where each text section is a separate dictionary, of which each dict has the key 'result'. so the structure should be something like this :{'methodology' : [{'result' : 'textsection1'},{'result' : 'textsection2'}]}'. The text follows below:\n""",
+        'input' : 'fulltext'}}
+
+    return(c_litcols_multi)
+
+
+def gen_col_multi (tbl, res_tbl, query_name, head = False):
+    """
+    asf
+    """
+
+    # breakpoint()
+    c_col = gc_litcols_multi()[query_name]
+    
+    dtx = tbl.select(['bibtex_id'] + [c_col['input']]).execute()
+
+    if res_tbl in conlite.tables:
+        tres = conlite.table(res_tbl)
+        l_existing_hashes = (tres.filter(_.query_name == query_name)
+                             .select(_.hash).distinct()).execute()['hash'].to_list()
+        
+    else:
+        l_existing_hashes = []
+    
+    if head:
+        dtx = dtx.head()
+        
+    for index, row in dtx.iterrows():
+        print(row)
+        
+        # hashlib.sha256(('hello' + 'world').encode('utf-8')).hexdigest()
+        new_hash = hashlib.sha256((c_col['prompt'] + row[c_col['input']]).encode('utf-8')).hexdigest()
+
+        if new_hash in l_existing_hashes:
+            continue
+
+        qry_oai_multi(row['bibtex_id'], c_col['prompt'], row[c_col['input']], query_name, res_tbl)
+        
+    
     
 
 def update_col (tbl, colname, head = False):
@@ -584,3 +697,9 @@ def get_qry_src(qry: ibis.expr.types.relations.Table) -> str:
 # qry_oai_assess('zzz', "you look at a text that contains some words. return the color. put it in a json dict with key 'color'", "apple blue car tree ", "colors")
 
 # edit_db(pd.DataFrame({'key': ['zzz'], 'color' :['purple']}), 'key', 'colors')
+
+# qry_oai_multi('zzz', "you look at a text that contains some words. return all the words that are colors. return a json-compatiable list, where each color is a separate json-dictionary, with each dict having the key 'result'. so the structure should be something like this :{'colors' : [{'result' : 'color1'},{'result' : 'color2'}]}'. The text follows below:\n", "apple blue car tree green orange", "color", "colors_long")
+
+# qry_oai_multi('yyy', "you look at a text that contains some words. return all the words that are colors. return a json-compatiable list, where each color is a separate json-dictionary, with each dict having the key 'result'. so the structure should be something like this :{'colors' : [{'result' : 'color1'},{'result' : 'color2'}]}'. The text follows below:\n", "apple red tree yellow orange", "color", "colors_long")
+
+

@@ -1267,32 +1267,12 @@ vc_dbtbl(t_cree_lit)
 
 
 
-def gc_litcols ():
-
-    c_litcols = {
-        'discipline' :
-        {'input' : 'abstract_text',
-         'prompt' : """what discipline is the text from? return result as json_dict with key 'discipline'.
-      text follows after this line: """},
-        'methodology':
-        {'input' : 'fulltext',
-         'prompt' : """you'll read an academic text and have to determine the methodology,
-         such as quantitative, qualitative, mixed methods, or else. return a json_dict with
-         the keys 'methodology' (the methodlogy), and 'methdology_certainty'
-         (how certain you are in the classification on a scale from 0 to 1)
-         text follows below:"""}
-    }
-
-    return(c_litcols)
-
     
 t_cree_lit = conlite.table('cree_lit')    
 update_col(t_cree_lit, 'discipline', False)
 
-update_col(t_cree_lit, 'methodology', False)
+update_col(t_cree_lit.filter(_.fulltext_length < 4e5), 'methodology', False)
 
-
-def update_pycol (tbl, col_input, col_output, func)
 
     
 t_cree_lit.group_by('discipline').aggregate(nbr = _.discipline.count()).order_by(_.nbr.desc())
@@ -1307,3 +1287,30 @@ yy = t_cree_lit.join(xx, t_cree_lit.bibtex_id == xx.bibtex_id)
 
 get_qry_src(xx)
 get_qry_src(yy)
+
+# * get methodology quotes
+
+
+gen_col_multi(
+    t_cree_lit.filter(_.fulltext_length < 4e5, _.methodology.ilike(['%quantitative%', '%mixed%'])),
+    'cree_lit_long', 'methodology', head = False)
+
+gen_col_multi(t_cree_lit.filter(_.fulltext_length < 4e5), 'cree_lit_long', 'methodology', head = False)
+
+update_col(t_cree_lit.filter(_.fulltext_length < 4e5), 'methodology', False) # update lit for filtering
+
+t_cree_lit.filter(_.bibtex_id == "Liz_2016_intermediaries")
+
+t_cree_lit.filter(_.fulltext_length > 4e5).count()
+
+
+
+import threading
+
+thread = threading.Thread(
+    target = gen_col_multi, args = (
+        t_cree_lit.filter(_.fulltext_length < 4e5, _.methodology.ilike(['%quantitative%', '%mixed%'])),
+        'cree_lit_long', 'methodology', False))
+thread.start()
+
+t_cree_lit_long = conlite.table('cree_lit_long')
