@@ -25,18 +25,6 @@ import pickle
 import subprocess
 
 
-import ibis
-from ibis import _, desc
-ibis.options.interactive = True
-
-
-conch = ibis.connect('clickhouse://localhost/litanai')
-tw = conch.table('works')
-tsrc = conch.table('sources')
-
-conlite = ibis.connect('sqlite://openai_responses.db')
-tlit = conch.table('littext')
-
 
 
 

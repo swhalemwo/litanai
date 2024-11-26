@@ -1305,12 +1305,5 @@ t_cree_lit.filter(_.fulltext_length > 4e5).count()
 
 
 
-import threading
 
-thread = threading.Thread(
-    target = gen_col_multi, args = (
-        t_cree_lit.filter(_.fulltext_length < 4e5, _.methodology.ilike(['%quantitative%', '%mixed%'])),
-        'cree_lit_long', 'methodology', False))
-thread.start()
 
-t_cree_lit_long = conlite.table('cree_lit_long')
