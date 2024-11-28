@@ -340,7 +340,7 @@ def qry_oai_assess (key, prompt, text_to_query, proj_name):
 
     return(dt_res)
 
-def qry_oai_multi (key, prompt, text_to_query, query_name, proj_name):
+def qry_oai_multi (key, prompt, text_to_query, query_name):
     """
     Generates multiple outputs from one input and writes them to a table.
     Parameters:
@@ -348,15 +348,15 @@ def qry_oai_multi (key, prompt, text_to_query, query_name, proj_name):
         prompt (str): Prompt to send to OpenAI.
         text_to_query (str): Text to query.
         query_name (str): Name of the query to use.
-        proj_name (str): Name of the project to save results.
+        
     Returns:
-        Nothing: works as side-effect.
+        dt_res (pd.DataFrame): DataFrame with the results.
     """
 
     # breakpoint()
     
 
-    # tbl_res = conlite.table(proj_name)
+    
     # if new_hash in tbl_res['hash']:
     #     continue
     res_json = qry_oai(key, prompt, text_to_query)
@@ -384,7 +384,9 @@ def qry_oai_multi (key, prompt, text_to_query, query_name, proj_name):
 
     dt_res.reset_index(names = "index")
 
-    write_to_db(dt_res, table_name = proj_name)
+    return(dt_res)
+
+    
 
     
 
