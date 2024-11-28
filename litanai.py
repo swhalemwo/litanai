@@ -649,9 +649,38 @@ def gen_col_multi (tbl, res_tbl, query_name, head = False):
         if new_hash in l_existing_hashes:
             continue
 
-        qry_oai_multi(row['bibtex_id'], c_col['prompt'], row[c_col['input']], query_name, res_tbl)
+        dt_res = qry_oai_multi(row['bibtex_id'], c_col['prompt'], row[c_col['input']], query_name)
+        write_to_db(dt_res, table_name = res_tbl)
         
+def update_col_any (tbl, colname, function, tbl_name = None, head = False):
+    """
+    update a column in the lit table with any function, which is applied to the row of tbl.
+    results are merged on key 'bibtex_id'.   
+
+    Parameters:
+        tbl: Ibis table expression for the lit table
+        colname: name of the column to update
+        function: function to apply to each row of the column
+        head: flag to use only first entries (for debugging)
+
+    Returns:
+        nothing: updates the table in place as side-effect
+    """
+    if tbl_name is None:
+        tbl_name = get_qry_src(tbl)
     
+
+    for index, row in tbl.execute().iterrows():
+        # breakpoint()
+        # print(row)
+        dt_res = function(row)
+        print(dt_res)
+        # pd.DataFrame(row)
+        # xx = row.to_frame().T
+        # dt_res = xx
+        edit_db(dt_res, 'bibtex_id', tbl_name)
+
+
     
 
 def update_col (tbl, colname, head = False):

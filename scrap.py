@@ -1365,5 +1365,27 @@ xx['result']
 
 group_by('key').aggregate(_.result.length())
 
+# * get citation count
+
+
+t_refworks = conch.table('works_referenced_works')
+
+# have to move to CH
+tx = move_tbl_to_conn(t_cree_lit.select('bibtex_id', id= 'work_id'), 'temp_creelit', conch)
+# cited_by_count is broken somehow -> 
+tx2 = tsrc.select(['id', 'cited_by_count']).right_join(tx2, 'id')
+
+# have to use refworks
+tx3 = (t_refworks.filter(t_refworks.referenced_work_id.isin(tx2.id_right))
+ .right_join(tx2, t_refworks.referenced_work_id == tx2.id_right))
+print(ibis.to_sql(tx3))
+# group by bibtex
+tx4 = tx3.group_by('bibtex_id').aggregate(cited_by_count = _.bibtex_id.count())
+# move back to sqlite
+tx5 = move_tbl_to_conn(tx4, 'temp_creelit_citedby', conlite)
+# update the cree_lit
+update_col_any(tx5, 'cited_by_count', lambda x: x.to_frame().T.reset_index(), 'cree_lit', True)
+
+
 
 
