@@ -1320,8 +1320,35 @@ view_xl(t_cree_lit_long.filter(_.query_name == "methodology_distilled")
  .group_by('result').aggregate(nbr = _.result.count()).order_by(_.nbr.desc()).execute())
 
 # regression papers
-(t_cree_lit_long.filter(_.query_name == "methodology_distilled", _.result.ilike('%regression%'))
- .select(_.key).distinct()).count()
+qry_reg = (t_cree_lit_long.filter(_.query_name == "methodology_distilled", _.result.ilike('%regression%'))
+ .select(_.key).distinct())
+
+qry_reg.execute()['key']
+
+# combine with full papers
+qry_reg_text = (t_cree_lit.select('bibtex_id', 'fulltext', 'fulltext_length')
+                .right_join(qry_reg.select(bibtex_id = 'key'), 'bibtex_id')
+                .filter(_.fulltext_length < 2e5))
+
+# check White_White_1965_canvases: also regression somehow.. yeet it via length
+x = t_cree_lit_long.filter(_.query_name == "methodology", _.key == "White_White_1965_canvases").execute()['result'].to_list()
+
+
+gen_col_multi(qry_reg_text, 'cree_lit_long', 'depvrbls', False)
+
+t_cree_lit_long.filter(_.query_name == "depvrbls").execute()[['key','result']].iloc[0:50]
+
+tsrc
+t_cree_lit
+
+
+
+xx = qry_oai_multi("Ursprung_Wiermann_2010_death", gc_litcols_multi()['depvrbls']['prompt'],     
+              qry_reg_text.filter(_.bibtex_id == "Ursprung_Wiermann_2010_death").execute()['fulltext'].to_list()[0], 'depvrbls')
+xx['result']
+
+
+
 
 # network papers
 (t_cree_lit_long.filter(_.query_name == "methodology_distilled",
