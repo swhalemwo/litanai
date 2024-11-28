@@ -566,9 +566,30 @@ def gc_litcols ():
          the keys 'methodology' (the methodlogy), and 'methdology_certainty'
          (how certain you are in the classification on a scale from 0 to 1)
          text follows below:"""}
+        
     }
 
     return(c_litcols)
+
+def gc_multi_promptcpnt (theme, item_name) :
+    """
+    Generate the prompt component that instructs LLM to return results in nice tidy format
+
+    Parameters:
+        theme: str, name of the theme
+        item_name: str, name of the items
+    Returns:
+        prompt_cpnt: str, the prompt component
+        """
+    
+    prompt_cpnt = f"""return a json-compatiable list, where each {item_name} is a separate dictionary, of which each dict has the key 'result'. so the structure should be something like this :{{'{theme}' : [{{'result' : '{item_name}1'}},{{'result' : '{item_name}2'}}]}}'. The text follows below\n:"""
+
+    return(prompt_cpnt)
+
+
+
+
+
 
 def gc_litcols_multi ():
 
@@ -579,7 +600,11 @@ def gc_litcols_multi ():
         
         'methodology_distilled' : {
             'prompt' : """you will read a bunch of quotes about a scientific studies methodology. based on them, identify the main methodologies used in the study, such as regression modelling, cluster analysis, topic modelling, network analysis, natural language processing and so on. return a json-compatiable list, where each methodology is a separate dictionary, of which each dict has the key 'result'. so the structure should be something like this :{'methodologies' : [{'result' : 'methodology1'},{'result' : 'methodology2'}]}'. The quotes follow below:\n""",
-            'input' : 'quotes'}
+            'input' : 'quotes'},
+        'depvrbls': {
+            'input' : 'fulltext',
+            'prompt' : f"""you'll read a scientific article which is about artist careers from a quantitative perspective which uses regression models. you have to extract the main dependent variables of the regression models, i.e. the left-hand side of the model or the entities being estimated. do not include independent variables. {gc_multi_promptcpnt('depvrbls', 'dependent variable')}"""
+         }
     }
 
     return(c_litcols_multi)
@@ -587,7 +612,13 @@ def gc_litcols_multi ():
 
 def gen_col_multi (tbl, res_tbl, query_name, head = False):
     """
-    asf
+    generate multiple results from a single input row, writes to sqlite database (res_tbl)
+
+    Parameters:
+        tbl: Ibis table expression for the lit table
+        res_tbl: name of the result table
+        query_name: name of the query
+        head: flag to use only first entries (for debugging)
     """
 
     # breakpoint()
