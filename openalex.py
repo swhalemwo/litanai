@@ -28,7 +28,8 @@ import subprocess
 
 
 
-from globs import DIR_CSV, DIR_JOURNAL_GZIP, FILE_CAREER_PAPERS, PROJ_DIR
+from globs import DIR_CSV, DIR_JOURNAL_GZIP, FILE_CAREER_PAPERS, PROJ_DIR, DBNAME
+# from globs import *
 from jutils import *
 
 
@@ -188,9 +189,13 @@ def gl_journal_info (concept_id):
 
 
 def gc_ingest_cmd (entity, DIR_CSV):
-    cmd = f"""clickhouse-client -d litanai --query "INSERT INTO {entity} FROM INFILE '{DIR_CSV}{entity}.csv.gz' COMPRESSION 'gzip' FORMAT CSV\""""
+
+    global DBNAME
+    
+    cmd = f"""clickhouse-client -d {DBNAME} --query "INSERT INTO {entity} FROM INFILE '{DIR_CSV}{entity}.csv.gz' COMPRESSION 'gzip' FORMAT CSV\""""
 
     return(cmd)
+
 
 
 def pickle_entity (l_entities, entity_id, DIR_ENTITY_PICKLES):
