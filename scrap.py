@@ -1365,6 +1365,20 @@ xx['result']
 
 group_by('key').aggregate(_.result.length())
 
+t_cree_lit_long.group_by('query_name').aggregate(nbr = _.query_name.count()).order_by(_.nbr.desc()).execute()
+
+t_cree_lit_long = conlite.table('cree_lit_long')
+
+(t_cree_lit_long.filter(_.query_name == "methodology_distilled", _.result.ilike('%regression%'))
+ .select('key').distinct().join(t_cree_lit, _.key == t_cree_lit.bibtex_id)
+ # .filter(_.abstract_text.ilike('%museum%')) 
+ .select('bibtex_id', 'work_id', 'cited_by_count', 'note_length')
+ .filter(_.note_length < 100)
+ .order_by(_.cited_by_count.desc()))
+
+# * auction papers
+tlit.filter(_.text.ilike('%auction%'), _.text.ilike('%price%'))
+
 # * get citation count
 
 
@@ -1389,3 +1403,43 @@ update_col_any(tx5, 'cited_by_count', lambda x: x.to_frame().T.reset_index(), 'c
 
 
 
+# * get notes length
+
+DIR_NOOTES = "/home/johannes/Dropbox/nootes/"
+
+def get_note_length(s):
+
+    # get number of words in file
+
+    with open(DIR_NOOTES + s + ".org", 'r') as f:
+        return len(f.read().split())
+        
+    
+
+get_note_length("Vedres_2020_ties")
+
+update_col_any(t_cree_lit['bibtex_id', 'title'], 'note_length',
+               lambda x: pd.DataFrame({'bibtex_id' : [x['bibtex_id']],
+                                       'note_length' : [get_note_length(x['bibtex_id'])]}), 'cree_lit', True)
+
+
+# * more auction papers
+qry_auction = (tw.filter(tw.abstract_text.ilike('%auction%'), tw.abstract_text.ilike('%price%'),
+                         tw.abstract_text.ilike('%artist%'),
+                         tw.publication_year > 2015)
+               .select(referenced_work_id = 'id', display_name = 'display_name', abstract_text = 'abstract_text'))
+
+qry_auction = (tw.filter(tw.abstract_text.ilike('%auction%'), tw.abstract_text.ilike('%price%'),
+                         tw.abstract_text.ilike('%artist%'), tw.abstract_text.ilike('%artory%'),
+                         tw.publication_year > 2015)
+               .select(referenced_work_id = 'id', display_name = 'display_name', abstract_text = 'abstract_text'))
+               
+
+
+d_auction = (t_refworks.right_join(qry_auction, 'referenced_work_id')
+ .drop(_.referenced_work_id_right)
+ .group_by(_.referenced_work_id, _.display_name)
+ .aggregate(nbr = _.referenced_work_id.count())
+ .order_by(_.nbr.desc())).execute()
+
+d_auction.iloc[0:20]
