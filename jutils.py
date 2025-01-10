@@ -64,7 +64,10 @@ def print_names(obj):
     if isinstance(obj, dict):
         print(obj.keys())
     elif isinstance(obj, ibis.expr.types.relations.Table):
+        
+        ibis.config.Interactive.max_rows = 40
         print(obj.info())
+        ibis.config.Interactive.max_rows = 10
     elif isinstance(obj, pd.core.frame.DataFrame):
         print(obj.columns)
     else:

@@ -669,11 +669,13 @@ def update_col_any (tbl, colname, function, tbl_name = None, head = False):
     if tbl_name is None:
         tbl_name = get_qry_src(tbl)
     
+    # breakpoint()
 
     for index, row in tbl.execute().iterrows():
         # breakpoint()
         # print(row)
         dt_res = function(row)
+        
         print(dt_res)
         # pd.DataFrame(row)
         # xx = row.to_frame().T

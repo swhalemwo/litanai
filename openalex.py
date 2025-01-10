@@ -706,11 +706,11 @@ def gl_new_journals_from_bib():
 
 # ** get works about exhibition, career, artist
 
-qry = (tw.filter(tw.abstract_text.ilike(['%exhibition%', '%museum%', '%display%']),
-                 tw.abstract_text.ilike(['%career%', '%auction%']),
-                 tw.abstract_text.ilike('%artist%'))
-       # .count())
-       .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
+# qry = (tw.filter(tw.abstract_text.ilike(['%exhibition%', '%museum%', '%display%']),
+#                  tw.abstract_text.ilike(['%career%', '%auction%']),
+#                  tw.abstract_text.ilike('%artist%'))
+#        # .count())
+#        .select(_.cited_by_count, _.display_name, _.publication_year, key = _.id, text = _.abstract_text))
 
 
 prompt_oai = """

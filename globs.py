@@ -11,7 +11,7 @@ tsrc = conch.table('sources')
 conlite = ibis.connect('sqlite://openai_responses.db')
 tlit = conch.table('littext')
 
-
+t_cree_lit = conlite.table('cree_lit')
 
 
 # metadata.tables.keys()
