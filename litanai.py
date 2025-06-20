@@ -68,19 +68,25 @@ def parse_pdf_pymupdf (docpath):
 
     print(docpath)
 
-    doc = pymupdf.open(DIR_LIT + docpath)
+    try: 
+        doc = pymupdf.open(DIR_LIT + docpath)
 
-    l_pages = []
+        l_pages = []
 
-    for page in doc:
-        text = page.get_text()
-        l_pages.append(text)
+        for page in doc:
+            text = page.get_text()
+            l_pages.append(text)
 
-        # len(l_pages)
+            # len(l_pages)
 
-    doc_txt = "\n".join(l_pages)
+        doc_txt = "\n".join(l_pages)
 
+    except:
+        print(f"{docpath} FAILED") # FIXME: check the pdf prcess, later check all the short texts to redo them
+        doc_txt = ""
+    
     return(doc_txt)
+
 
 
 def parse_pdf_openparse (docpath):
