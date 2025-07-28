@@ -53,6 +53,19 @@ def create_littext_table(client):
     """)
     print("'littext' table created successfully.")
 
+def get_existing_keys(client, table_name='littext'):
+    """Fetches all unique keys from a table."""
+    print(f"Fetching existing keys from '{table_name}'...")
+    try:
+        result = client.query(f"SELECT DISTINCT key FROM {table_name}")
+        keys = {row[0] for row in result.result_rows}
+        print(f"Found {len(keys)} existing keys.")
+        return keys
+    except Exception as e:
+        # Re-raise the exception to be handled by the caller
+        raise e
+
+
 def insert_dataframe(client, table_name, df):
     """
     Inserts a pandas DataFrame into the specified ClickHouse table.
