@@ -1,5 +1,5 @@
 
-This module handles all interactions with the language model for the litanai project.
+# This module handles all interactions with the language model for the litanai project.
 
 
 import json

@@ -1,6 +1,6 @@
 
-This module handles all PDF processing tasks for the litanai project,
-including text extraction and downloading.
+# This module handles all PDF processing tasks for the litanai project,
+# including text extraction and downloading.
 
 import os
 import subprocess
