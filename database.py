@@ -44,7 +44,7 @@ def create_littext_table(client):
     CREATE TABLE littext (
         `key` String,
         `text` String,
-        INDEX inv_idx(text) TYPE inverted(0) GRANULARITY 1
+        INDEX inv_idx(text) TYPE inverted() GRANULARITY 1
     )
     ENGINE = MergeTree()
     ORDER BY key
