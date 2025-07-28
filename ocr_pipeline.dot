@@ -1,0 +1,55 @@
+digraph OCR_Pipeline {
+    rankdir=TD;
+    node [shape=box, style=filled, fillcolor=lightblue];
+
+    subgraph cluster_get_pdf_text {
+        label = "get_pdf_text()";
+        color = blue;
+
+        A [label="get_pdf_text(pdf_path, method)"];
+        B [label="Is PDF readable by PyMuPDF?", shape=diamond, fillcolor=lightgoldenrod];
+        C [label="re_render_pdf_with_ghostscript(pdf_path)"];
+        D [label="Initial Text Extraction (method)"];
+        E [label="Is text empty/whitespace?", shape=diamond, fillcolor=lightgoldenrod];
+        F [label="Return Extracted Text (Success)", fillcolor=lightgreen];
+        G [label="Return Empty String (Failure)", fillcolor=lightcoral];
+
+        A -> B;
+        B -> C [label="No"];
+        B -> D [label="Yes"];
+        C -> D [label="Success"];
+        C -> G [label="Failure"];
+        D -> E;
+        E -> F [label="No"];
+        E -> H [label="Yes"];
+    }
+
+    subgraph cluster_extract_text_ocrmypdf {
+        label = "extract_text_ocrmypdf()";
+        color = green;
+
+        H [label="extract_text_ocrmypdf(pdf_path)"];
+        I [label="Attempt 1: Direct ocrmypdf.ocr()"];
+        J [label="Is Direct OCR successful?", shape=diamond, fillcolor=lightgoldenrod];
+        K [label="Screenshot Pipeline Fallback", fillcolor=lightgray];
+        L [label="Render pages to images (PyMuPDF)"];
+        M [label="Assemble images to new PDF (PyMuPDF)"];
+        N [label="OCR new PDF (ocrmypdf)"];
+        O [label="Return Extracted Text (Success)", fillcolor=lightgreen];
+        P [label="Return Empty String (Failure)", fillcolor=lightcoral];
+
+        H -> I;
+        I -> J;
+        J -> O [label="Yes"];
+        J -> K [label="No"];
+        K -> L;
+        L -> M;
+        M -> N;
+        N -> O [label="Success"];
+        N -> P [label="Failure"];
+    }
+
+    // Connect the main function to the OCR pipeline's success/failure
+    O -> F [label="Copy OCRed PDF to original"];
+    P -> G;
+}
