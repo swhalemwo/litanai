@@ -19,6 +19,30 @@ from pdf_processor import get_pdf_text
 from llm import query_openai
 
 
+def test_ocr_pipeline(file_path):
+    """
+    Runs the full OCR pipeline on a single PDF file and prints the extracted text.
+    This is for testing purposes and does not interact with the database.
+    """
+    if not os.path.exists(file_path):
+        print(f"Error: File not found at '{file_path}'")
+        return
+
+    print(f"--- Starting OCR test for: {os.path.basename(file_path)} ---")
+    # The 'method' argument is less important here since the function will
+    # fall back to OCR automatically if the initial method fails.
+    extracted_text = get_pdf_text(file_path, method="mupdf")
+
+    if extracted_text:
+        print("\n--- OCR Test Successful ---")
+        print(f"Extracted {len(extracted_text)} characters.")
+        print("\n--- Text Snippet (first 500 chars) ---")
+        print(extracted_text[:500])
+        print("\n--- End of Snippet ---")
+    else:
+        print("\n--- OCR Test Failed: No text was extracted. ---")
+
+
 def update_littext_db(method="mupdf", limit=None):
     """Scans for new PDFs and adds them to the littext database."""
     client = get_clickhouse_client()
@@ -106,12 +130,18 @@ def main():
     parser_update.add_argument("--limit", type=int, default=None,
                                help="The maximum number of new PDFs to process.")
 
+    # --- OCR Test Command ---
+    parser_test = subparsers.add_parser("ocr-test", help="Run the OCR pipeline on a single file for testing.")
+    parser_test.add_argument("file", type=str, help="The absolute path to the PDF file to test.")
+
     args = parser.parse_args()
 
     if args.command == "rebuild-db":
         rebuild_littext_db(args.method, args.limit)
     elif args.command == "update-db":
         update_littext_db(args.method, args.limit)
+    elif args.command == "ocr-test":
+        test_ocr_pipeline(args.file)
 
 if __name__ == "__main__":
     main()
