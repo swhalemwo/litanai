@@ -88,7 +88,7 @@ def extract_text_pdfminer(pdf_path):
         return ""
 
 def _ocr_via_screenshot_pipeline(pdf_path, temp_dir):
-    """A robust OCR fallback that screenshots each page and returns the raw text."""
+    """A robust OCR fallback that screenshots each page and rebuilds the PDF."""
     import fitz  # PyMuPDF
     import ocrmypdf
     import os
@@ -109,28 +109,32 @@ def _ocr_via_screenshot_pipeline(pdf_path, temp_dir):
 
     if not image_files:
         print("ERROR: Could not extract any pages as images.")
-        return ""
+        return None, ""
 
     # 2. Assemble images into a new PDF
     rebuilt_pdf_path = os.path.join(temp_dir, "rebuilt.pdf")
     with fitz.open() as rebuilt_doc:
         for image_file in image_files:
             with fitz.open(image_file) as img_doc:
-                rebuilt_doc.insert_pdf(img_doc)
+                pdf_bytes = img_doc.convert_to_pdf()
+                with fitz.open("pdf", pdf_bytes) as pdf_doc:
+                    rebuilt_doc.insert_pdf(pdf_doc)
         rebuilt_doc.save(rebuilt_pdf_path)
 
-    # 3. OCR the new, clean PDF to get its text
-    text_only_pdf = os.path.join(temp_dir, "text_only.pdf")
+    # 3. OCR the new, clean PDF
+    final_ocr_path = os.path.join(temp_dir, "final_ocr.pdf")
     try:
-        ocrmypdf.ocr(rebuilt_pdf_path, text_only_pdf, force_ocr=True, deskew=True)
-        return extract_text_mupdf(text_only_pdf)
+        ocrmypdf.ocr(rebuilt_pdf_path, final_ocr_path, force_ocr=True, deskew=False, jbig2_lossy=True,
+                     output_type='pdf')
+        final_text = extract_text_mupdf(final_ocr_path)
+        return final_ocr_path, final_text
     except Exception as e:
         print(f"ERROR: Screenshot pipeline failed at the final OCR stage: {e}")
-        return ""
+        return None, ""
 
 def extract_text_ocrmypdf(pdf_path):
     """
-    Performs OCR on a PDF, using a sidecar-based screenshot fallback.
+    Performs OCR on a PDF, with a robust screenshot fallback for difficult files.
     Overwrites the original file on success.
     """
     import ocrmypdf
@@ -143,46 +147,28 @@ def extract_text_ocrmypdf(pdf_path):
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_output_path = os.path.join(temp_dir, "output.pdf")
         final_text = ""
+        final_pdf_path = None
 
         try:
             # --- Attempt 1: Direct OCR ---
             ocrmypdf.ocr(pdf_path, temp_output_path, force_ocr=True, deskew=True)
             final_text = extract_text_mupdf(temp_output_path)
+            final_pdf_path = temp_output_path
 
         except Exception as e:
-            print(f"WARNING: Initial OCR failed: {e}. Falling back to screenshot+sidecar pipeline.")
-            # --- Attempt 2: Screenshot + Sidecar ---
-            ocr_text = _ocr_via_screenshot_pipeline(pdf_path, temp_dir)
-
-            if ocr_text:
-                sidecar_path = os.path.join(temp_dir, "sidecar.txt")
-                with open(sidecar_path, 'w', encoding='utf-8') as f:
-                    f.write(ocr_text)
-
-                print("INFO: Applying generated text to original PDF via sidecar file.")
-                try:
-                    ocrmypdf.ocr(
-                        pdf_path,             # Input is the original PDF
-                        temp_output_path,     # Output is a temporary file
-                        sidecar=sidecar_path, # Provide the OCR text
-                        force_ocr=True        # Force application of the text layer
-                    )
-                    final_text = ocr_text # We already have the text
-                except Exception as sidecar_e:
-                    print(f"ERROR: Sidecar application failed: {sidecar_e}")
-                    return ""
-            else:
-                print("ERROR: Screenshot pipeline produced no text.")
-                return ""
+            print(f"WARNING: Initial OCR failed: {e}. Falling back to screenshot pipeline.")
+            # --- Attempt 2: Screenshot Pipeline ---
+            final_pdf_path, final_text = _ocr_via_screenshot_pipeline(pdf_path, temp_dir)
 
         # If any attempt succeeded, overwrite the original file
-        if final_text:
-            shutil.copy(temp_output_path, pdf_path)
+        if final_text and final_pdf_path and os.path.exists(final_pdf_path):
+            shutil.copy(final_pdf_path, pdf_path)
             print(f"SUCCESS: Overwrote original with new OCRed version: {os.path.basename(pdf_path)}")
             return final_text
         else:
             print(f"ERROR: All OCR attempts failed for {pdf_path}.")
             return ""
+
 
 
 EXTRACTION_METHODS = {
