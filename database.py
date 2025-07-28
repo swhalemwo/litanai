@@ -38,13 +38,15 @@ def create_littext_table(client):
     Drops the existing table if it exists.
     """
     print("Creating 'littext' table...")
+    client.command("SET allow_experimental_full_text_index = true;")
     client.command("DROP TABLE IF EXISTS littext")
     client.command("SET allow_experimental_inverted_index = true;")
     client.command("""
     CREATE TABLE littext (
         `key` String,
+    
         `text` String,
-        INDEX inv_idx(text) TYPE inverted('tokenizer' = 'tokenbf_v1') GRANULARITY 1
+        INDEX inv_idx(text) TYPE text(tokenizer = 'default')
     )
     ENGINE = MergeTree()
     ORDER BY key
