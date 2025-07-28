@@ -89,42 +89,72 @@ def extract_text_pdfminer(pdf_path):
 
 def extract_text_ocrmypdf(pdf_path):
     """
-    Performs OCR on a PDF using ocrmypdf, overwriting the original file.
-    It forces OCR even if text is present, which is useful for files
-    with poor quality or incomplete text layers.
+    Performs OCR on a PDF, attempting to repair it if initial OCR fails.
+    It forces OCR on all pages and overwrites the original file on success.
     """
     import ocrmypdf
     import shutil
     import os
+    import subprocess
 
     print(f"INFO: Forcing OCR on: {os.path.basename(pdf_path)}")
 
-    # ocrmypdf cannot modify a file in-place. The recommended workflow is
-    # to create a temporary file and then replace the original on success.
     temp_output_path = f"{pdf_path}.__ocrtemp__.pdf"
 
     try:
-        # Execute OCR, forcing it on all pages and deskewing images.
+        # First attempt at OCR
         ocrmypdf.ocr(
             pdf_path,
             temp_output_path,
-            force_ocr=True,  # Forces OCR on pages with text
-            deskew=True      # Straightens crooked pages
+            force_ocr=True,
+            deskew=True,
         )
-
-        # Replace the original file with the newly OCRed version
-        shutil.move(temp_output_path, pdf_path)
-        print(f"SUCCESS: Overwrote original with OCRed version: {os.path.basename(pdf_path)}")
-
-        # Now, extract text from the newly updated file
-        return extract_text_mupdf(pdf_path)
-
     except Exception as e:
-        print(f"ERROR: OCR failed for {pdf_path}: {e}")
-        # Clean up the temporary file if it exists
-        if os.path.exists(temp_output_path):
-            os.remove(temp_output_path)
-        return ""
+        # Check if the error is the Ghostscript one we know how to handle
+        if 'Ghostscript' in str(e):
+            print(f"WARNING: Ghostscript failed on initial OCR attempt for {os.path.basename(pdf_path)}. Attempting to repair PDF first.")
+            repaired_path = f"{pdf_path}.__repaired__.pdf"
+            try:
+                # Use Ghostscript to re-distill/repair the PDF
+                subprocess.run([
+                    'gs',
+                    '-o', repaired_path,
+                    '-sDEVICE=pdfwrite',
+                    '-dPDFSETTINGS=/default',
+                    pdf_path
+                ], check=True, capture_output=True, text=True) # Capture output to hide gs messages unless error
+
+                print("INFO: PDF repair successful. Retrying OCR on repaired file.")
+                # Retry OCR on the repaired file
+                ocrmypdf.ocr(
+                    repaired_path,
+                    temp_output_path,
+                    force_ocr=True,
+                    deskew=True,
+                )
+            except Exception as repair_e:
+                print(f"ERROR: OCR failed even after repair attempt for {pdf_path}: {repair_e}")
+                # Clean up temporary files
+                if os.path.exists(repaired_path):
+                    os.remove(repaired_path)
+                if os.path.exists(temp_output_path):
+                    os.remove(temp_output_path)
+                return ""
+            finally:
+                 if os.path.exists(repaired_path):
+                    os.remove(repaired_path)
+        else:
+            # It's a different, unexpected error
+            print(f"ERROR: An unexpected OCR error occurred for {pdf_path}: {e}")
+            if os.path.exists(temp_output_path):
+                os.remove(temp_output_path)
+            return ""
+
+    # If we reach here, one of the OCR attempts was successful
+    shutil.move(temp_output_path, pdf_path)
+    print(f"SUCCESS: Overwrote original with OCRed version: {os.path.basename(pdf_path)}")
+    return extract_text_mupdf(pdf_path)
+
 
 EXTRACTION_METHODS = {
     "pypdf": extract_text_pypdf,
