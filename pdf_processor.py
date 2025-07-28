@@ -171,6 +171,46 @@ def extract_text_ocrmypdf(pdf_path):
 
 
 
+def re_render_pdf_with_ghostscript(pdf_path):
+    """
+    Attempts to re-render a PDF using Ghostscript, overwriting the original file.
+    This can fix structural corruption by effectively 'printing' the PDF to a new file.
+    Returns True if re-rendering was successful, False otherwise.
+    """
+    import subprocess
+    import os
+    import shutil
+
+    print(f"INFO: Attempting to re-render {os.path.basename(pdf_path)} with Ghostscript.")
+    temp_re_rendered_path = f"{pdf_path}.__gs_re_rendered__.pdf"
+
+    try:
+        subprocess.run(
+            [
+                'gs',
+                '-o', temp_re_rendered_path,
+                '-sDEVICE=pdfwrite',
+                '-dCompatibilityLevel=1.4', # Use a common compatibility level
+                '-dPDFSETTINGS=/prepress',  # High quality output
+                '-dNOPAUSE',
+                '-dBATCH',
+                pdf_path
+            ],
+            check=True, capture_output=True, text=True
+        )
+        shutil.copy(temp_re_rendered_path, pdf_path)
+        print(f"SUCCESS: {os.path.basename(pdf_path)} re-rendered by Ghostscript.")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: Ghostscript re-rendering failed for {os.path.basename(pdf_path)}: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"ERROR: An unexpected error occurred during Ghostscript re-rendering for {os.path.basename(pdf_path)}: {e}")
+        return False
+    finally:
+        if os.path.exists(temp_re_rendered_path):
+            os.remove(temp_re_rendered_path)
+
 EXTRACTION_METHODS = {
     "pypdf": extract_text_pypdf,
     "mupdf": extract_text_mupdf,
@@ -185,6 +225,16 @@ def get_pdf_text(pdf_path, method="mupdf"):
     """Extracts text from a PDF, falling back to OCR if needed."""
     if method not in EXTRACTION_METHODS:
         raise ValueError(f"Unknown extraction method: {method}")
+
+    # Attempt to repair the PDF first if it's unreadable
+    try:
+        # Test if the file is readable by PyMuPDF (fitz)
+        fitz.open(pdf_path).close()
+    except Exception:
+        print(f"WARNING: {os.path.basename(pdf_path)} is unreadable. Attempting repair.")
+        if not re_render_pdf_with_ghostscript(pdf_path):
+            print(f"ERROR: Failed to re-render {os.path.basename(pdf_path)}. Skipping.")
+            return ""
 
     # First, try the specified primary method
     text = EXTRACTION_METHODS[method](pdf_path)
