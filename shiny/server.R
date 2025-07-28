@@ -76,6 +76,21 @@ gl_searchterms_cbn <- function(text_input) {
 }
 
 
+sanitize_col_name <- function(name) {
+  # Transliterate characters like ö, ä, etc., to their ASCII equivalents (oe, ae)
+  # The from="UTF-8" is good practice to ensure correct interpretation of the input string.
+  sanitized_name <- iconv(name, from = "UTF-8", to = "ASCII//TRANSLIT")
+  
+  # Replace spaces with underscores first
+  sanitized_name <- gsub("\\s+", "_", sanitized_name)
+  
+  # Replace any character that is NOT a letter, number, or underscore with an underscore
+  sanitized_name <- gsub("[^a-zA-Z0-9_]", "_", sanitized_name)
+  
+  return(sanitized_name)
+}
+
+
 gc_qry_fmt <- function(l_searchterms_cbn) {
 
     
@@ -97,9 +112,9 @@ gc_qry_fmt <- function(l_searchterms_cbn) {
 
 
     qry_cnts <- purrr::map(l_searchterms_cbn, ~sprintf("countSubstringsCaseInsensitive(text, '%s') as cnt_%s",
-                                             .x$split, gsub("\\s+", "_", .x$split)))
+                                             .x$split, sanitize_col_name(.x$split)))
 
-    qry_cnt_filter <- purrr::map(l_searchterms_cbn, ~sprintf(" cnt_%s %s", gsub("\\s+", "_", .x$split), .x$freq))
+    qry_cnt_filter <- purrr::map(l_searchterms_cbn, ~sprintf(" cnt_%s %s", sanitize_col_name(.x$split), .x$freq))
 
     qry_fmt <- sprintf("select key, length(text) as textlen, %s from littext where %s and %s",
                        paste0(qry_cnts, collapse = " , "),
