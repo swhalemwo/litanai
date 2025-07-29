@@ -8,7 +8,8 @@ ui <- fluidPage(
     
     sidebarLayout(
         sidebarPanel(
-            textInput("search", "Search:", value = "")
+            textInput("search", "Document Search:", value = ""),
+            textInput("snippet_search", "Snippet Search (placeholder):", value = "")
         ),
         
         mainPanel(
