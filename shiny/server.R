@@ -181,6 +181,93 @@ bm25 <- function(dt, k1 = 1.5, b = 0.75) {
 
 
 
+#' Fetch search snippets from the littext database using the extractAll method.
+#'
+#' @param db_con A DBI database connection object to ClickHouse.
+#' @param doc_ids A character vector of document keys to search within.
+#' @param search_term The term to search for.
+#' @return A data.frame with the key and the corresponding snippet, with the search term highlighted.
+get_snippets_from_db <- function(db_con, doc_ids, search_term) {
+    ## Return empty frame if there's nothing to search
+    if (length(doc_ids) == 0 || !is.character(doc_ids) || nchar(search_term) == 0) {
+        return(data.frame(key = character(), snippet = character()))
+    }
+
+    ## The user's search term needs to be escaped for the regex, but not for multiSearchAny
+    
+    l_search_terms <- gl_searchterms_cbn(search_term) %>% map(~chuck(.x, "split"))
+    pattern <- paste0("(?i)(?-s).*", l_search_terms, ".*") 
+
+    
+
+    ## Construct the SQL query using the blog post's method
+    query <- glue::glue_sql(
+                       "SELECT
+      key,
+      snippet
+    FROM (
+      SELECT
+        key,
+        -- Extract all full lines containing the search term (case-insensitive)
+        arrayDistinct(extractAll(text, {pattern})) AS snippets
+      FROM litanai.littext
+      WHERE key IN ({doc_ids*})
+        -- First, efficiently find documents that contain the plain search term
+        -- AND multiSearchAny(text, [{l_search_terms}])
+    )
+    -- Expand the array of snippets into individual rows
+    ARRAY JOIN snippets AS snippet
+    LIMIT 200",
+    .con = db_con
+    )
+
+    ## query <- "SELECT
+  ##   key,
+  ##       arrayDistinct(extractAll(text, '(?i)(?-s).*regression.*')) AS snippets
+  ## FROM litanai.littext
+  ## WHERE key IN ('FilippiMazzola_Wit_2024_neural.pdf')"
+
+  ##   query <- "Select extractAll(text, 'regression') from littext where key = 'FilippiMazzola_Wit_2024_neural.pdf'"
+    
+
+
+    cat("Executing Snippet Query:\n", query, "\n")
+    results <- dbGetQuery(db_con, query) %>% adt
+        
+
+    ## Highlight the search term in the snippet using R's gsub
+    ## This is more efficient than doing it in the database
+    ## if (nrow(results) > 0) {
+    ##     results$snippet <- gsub(
+    ##         paste0("(", search_term, ")"),
+    ##         "<b>\\\\1</b>", # Wrap match in bold tags
+    ##         results$snippet,
+    ##         ignore.case = TRUE
+    ##     )
+    ## }
+
+    return(results)
+}
+
+# --- Example Usage ---
+# This is how you would call the function from your Shiny server logic.
+
+# 1. Establish connection to your database (replace with your actual connection code)
+
+# 2. Define the inputs based on your example
+example_doc_id <- "FilippiMazzola_Wit_2024_neural.pdf"
+example_search_term <- "regression"
+
+# 3. Call the function to get snippets
+# In a real app, 'con' would be your live database connection
+snippets_df <- get_snippets_from_db(con, example_doc_id, example_search_term)
+
+# 4. Print the resulting data frame
+# print(snippets_df)
+
+
+
+
 gd_res <- function(qry_fmt) {
 
     con <- check_connection(con)
