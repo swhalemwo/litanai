@@ -346,7 +346,11 @@ server <- function(input, output) {
         doc_keys <- doc_search_results()$key
 
         if (length(doc_keys) > 0) {
-            snippets <- get_snippets_from_db(con, doc_keys, input$snippet_search)
+            snippets <- get_snippets_from_db(con,
+                                             doc_keys,
+                                             input$snippet_search,
+                                             len_pre = input$len_pre,
+                                             len_post = input$len_post)
             output$snippets_table <- renderTable({snippets})
         }
     })
