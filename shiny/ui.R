@@ -3,22 +3,6 @@ library(ggplot2)
 library(dplyr)
 library(data.table)
 
-
-## ui <- fluidPage(
-##   titlePanel("Search Functionality in Shiny"),
-  
-##   sidebarLayout(
-##     sidebarPanel(
-##       textInput("search", "Search:", value = "")
-##     ),
-    
-##     mainPanel(
-##       uiOutput("search_result")
-##     )
-##   )
-## )
-
-
 ui <- fluidPage(
     titlePanel("Search Functionality in Shiny"),
     
@@ -28,8 +12,20 @@ ui <- fluidPage(
         ),
         
         mainPanel(
-            uiOutput("search_result"),  # Display the search string
-            tableOutput("results_table")  # Display the results of the query
+            tabsetPanel(
+                id = "main_tabs",
+                tabPanel(
+                    "Document Search",
+                    uiOutput("search_result"),
+                    tableOutput("results_table")
+                ),
+                tabPanel(
+                    "Snippet Search",
+                    # Placeholder for future snippet UI
+                    h4("Snippet Search"),
+                    p("This tab will be used to display snippets from selected documents.")
+                )
+            )
         )
     )
 )
