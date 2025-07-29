@@ -22,9 +22,8 @@ ui <- fluidPage(
                 ),
                 tabPanel(
                     "Snippet Search",
-                    # Placeholder for future snippet UI
-                    h4("Snippet Search"),
-                    p("This tab will be used to display snippets from selected documents.")
+                    h4("Snippet Search Results"),
+                    tableOutput("snippets_table")
                 )
             )
         )
