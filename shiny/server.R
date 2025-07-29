@@ -216,8 +216,7 @@ get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len
         -- AND multiSearchAny(text, [{l_search_terms}])
     )
     -- Expand the array of snippets into individual rows
-    ARRAY JOIN snippets AS snippet
-    LIMIT 200",
+    ARRAY JOIN snippets AS snippet", 
     .con = db_con
     )
     ## query <- "SELECT
@@ -232,7 +231,7 @@ get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len
     ## filter down results in R if more than one search term
     ## FIXME: for now now just one term included
     if (len(l_search_terms) > 1) {
-        dt_results <- dt_results[grepl(l_search_terms[2], snippet)]
+        dt_results <- dt_results[grepl(l_search_terms[2], snippet, ignore.case = T)]
     }
 
     
@@ -257,10 +256,12 @@ get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len
 
 # 2. Define the inputs based on your example
 ## example_doc_id <- c("FilippiMazzola_Wit_2024_neural.pdf", "Bianchi_etal_2024_rem.pdf")
-## example_search_term <- "regression|hyper"
+## example_doc_id <- "Kirk_2017_trove.pdf"
+## example_search_term <- "vision"
+## example_search_term <- c("vision,unique")
 ## # 3. Call the function to get snippets
 ## # In a real app, 'con' would be your live database connection
-## snippets_df <- get_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 200, len_post = 200)
+## snippets_df <- get_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 50, len_post = 50)
 ## snippets_df
 
 
