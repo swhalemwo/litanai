@@ -9,7 +9,11 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
             textInput("search", "Document Search:", value = ""),
-            textInput("snippet_search", "Snippet Search (placeholder):", value = "")
+            hr(),
+            h4("Snippet Options"),
+            textInput("snippet_search", "Snippet Search:", value = ""),
+            numericInput("len_pre", "Context Before (chars):", value = 50, min = 0, max = 500),
+            numericInput("len_post", "Context After (chars):", value = 50, min = 0, max = 500)
         ),
         
         mainPanel(
