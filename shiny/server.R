@@ -187,7 +187,7 @@ bm25 <- function(dt, k1 = 1.5, b = 0.75) {
 #' @param doc_ids A character vector of document keys to search within.
 #' @param search_term The term to search for.
 #' @return A data.frame with the key and the corresponding snippet, with the search term highlighted.
-get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 10, len_post = 10) {
+get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_post = 40) {
     ## Return empty frame if there's nothing to search
     if (length(doc_ids) == 0 || !is.character(doc_ids) || nchar(search_term) == 0) {
         return(data.frame(key = character(), snippet = character()))
@@ -305,6 +305,10 @@ gd_res <- function(qry_fmt) {
 
 server <- function(input, output) {
     
+    
+    doc_search_results <- reactiveVal(data.table())
+ 
+
     # Display the entered search string
     output$search_result <- renderUI({
         req(input$search)  # Require input to be available
@@ -324,6 +328,7 @@ server <- function(input, output) {
         qry_fmt <- gc_qry_fmt(l_searchterms_cbn)
         
         dt_res <- gd_res(qry_fmt)
+        doc_search_results(dt_res) # Store results
         ## # Print the SQL query generated (optional, just for debugging)
 
 
@@ -334,7 +339,21 @@ server <- function(input, output) {
         output$results_table <- renderTable({dt_res})
         
     })
-}
+
+    observeEvent(input$snippet_search, {
+        
+        req(input$snippet_search, doc_search_results())
+        doc_keys <- doc_search_results()$key
+
+        if (length(doc_keys) > 0) {
+            snippets <- get_snippets_from_db(con, doc_keys, input$snippet_search)
+            output$snippets_table <- renderTable({snippets})
+        }
+    })
+}                                                                                            
+
+
+
 
 
 
