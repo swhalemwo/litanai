@@ -187,7 +187,7 @@ bm25 <- function(dt, k1 = 1.5, b = 0.75) {
 #' @param doc_ids A character vector of document keys to search within.
 #' @param search_term The term to search for.
 #' @return A data.frame with the key and the corresponding snippet, with the search term highlighted.
-get_snippets_from_db <- function(db_con, doc_ids, search_term) {
+get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 10, len_post = 10) {
     ## Return empty frame if there's nothing to search
     if (length(doc_ids) == 0 || !is.character(doc_ids) || nchar(search_term) == 0) {
         return(data.frame(key = character(), snippet = character()))
@@ -196,20 +196,24 @@ get_snippets_from_db <- function(db_con, doc_ids, search_term) {
     ## The user's search term needs to be escaped for the regex, but not for multiSearchAny
     
     l_search_terms <- gl_searchterms_cbn(search_term) %>% map(~chuck(.x, "split"))
-    pattern <- paste0("(?i)(?-s).*", l_search_terms, ".*") 
-
+    ## pattern <- paste0("(?i)(?-s).*", l_search_terms, ".*")
+    ## pattern <- paste0("(?i)(?-s).*", l_search_terms, ".*")  # kinda works: row
+    ## pattern <- paste0("(?s)(?:.*\\n)?(?-s).*(?:", l_search_terms, ").*(?:\\n.*)?") # entire document
+    ## pattern <- paste0("'(?i)(?:(?:\\S+\\s+){0,5})?({",l_search_terms,"})(?:(?:\\s+\\S+){0,5})?'") # nothing
     
-
+    pattern <- paste0("(?i)(.{0,",len_pre,"})(", l_search_terms, ")(.{0,",len_post,"})") # 10 chars
+    ## pattern <- paste0("(?iUs)(.{0,30}?)(", l_search_terms, ")(.{0,30}?)")
     ## Construct the SQL query using the blog post's method
     query <- glue::glue_sql(
                        "SELECT
       key,
-      snippet
+      arrayStringConcat(snippet) as snippet
     FROM (
       SELECT
         key,
         -- Extract all full lines containing the search term (case-insensitive)
-        arrayDistinct(extractAll(text, {pattern})) AS snippets
+        -- arrayDistinct(extractAll(text, {pattern})) AS snippets
+        arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
       FROM litanai.littext
       WHERE key IN ({doc_ids*})
         -- First, efficiently find documents that contain the plain search term
@@ -220,21 +224,16 @@ get_snippets_from_db <- function(db_con, doc_ids, search_term) {
     LIMIT 200",
     .con = db_con
     )
-
     ## query <- "SELECT
-  ##   key,
-  ##       arrayDistinct(extractAll(text, '(?i)(?-s).*regression.*')) AS snippets
-  ## FROM litanai.littext
-  ## WHERE key IN ('FilippiMazzola_Wit_2024_neural.pdf')"
-
-  ##   query <- "Select extractAll(text, 'regression') from littext where key = 'FilippiMazzola_Wit_2024_neural.pdf'"
-    
-
-
+    ##     key,
+    ##             arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
+    ##   FROM litanai.littext
+    ##   WHERE key IN ({doc_ids*})"
     cat("Executing Snippet Query:\n", query, "\n")
-    results <- dbGetQuery(db_con, query) %>% adt
-        
-
+    results <- dbGetQuery(db_con, query) %>% adt %>% .[, snippet := gsub("\n", " ", snippet)]
+    ## results[, snippet]
+    
+    
     ## Highlight the search term in the snippet using R's gsub
     ## This is more efficient than doing it in the database
     ## if (nrow(results) > 0) {
@@ -260,7 +259,7 @@ example_search_term <- "regression"
 
 # 3. Call the function to get snippets
 # In a real app, 'con' would be your live database connection
-snippets_df <- get_snippets_from_db(con, example_doc_id, example_search_term)
+snippets_df <- get_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 20, len_post = 20)
 
 # 4. Print the resulting data frame
 # print(snippets_df)
