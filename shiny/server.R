@@ -430,7 +430,19 @@ server <- function(input, output) {
         }
         h4(title)
     })
-}                                                                                            
+
+    output$snippet_summary_table <- renderTable({
+        dt_snips <- snippet_results()
+        if (nrow(dt_snips) > 0) {
+            summary_table <- dt_snips[, .N, by = key][order(-N)]
+            setnames(summary_table, c("Document", "Snippets"))
+            return(summary_table)
+        }
+        return(NULL)
+    })
+}
+
+
 
 
 

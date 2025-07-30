@@ -23,7 +23,10 @@ ui <- fluidPage(
                 column(4, style='padding-left:2px;',
                     actionButton("order_button", "Order", style = "margin-top: 25px;")
                 )
-            )
+            ),
+            hr(),
+            h4("Snippet Summary"),
+            tableOutput("snippet_summary_table")
         ),
         
         mainPanel(
