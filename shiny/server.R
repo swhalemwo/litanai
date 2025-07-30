@@ -7,6 +7,22 @@ library(dbplyr)
 library(purrr)
 
 
+# At the top of your server.R or in global.R
+library(reticulate)
+use_virtualenv("~/litanai", required = TRUE)
+
+
+model <- SentenceTransformer("all-MiniLM-L6-v2")
+SentenceTransformer <- import("sentence_transformers")$SentenceTransformer
+model <- SentenceTransformer("all-MiniLM-L6-v2")
+
+
+# All the complexity of tokenization, running the model,
+# and pooling is handled by this single line:
+## embeddings <- model$encode(c("This is a sentence.", "This is another one."))
+
+
+
 library(DBI)
 con <- DBI::dbConnect(RClickhouse::clickhouse(), dbname = "litanai")
 ## nice, works             
