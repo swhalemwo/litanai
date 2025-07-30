@@ -203,7 +203,7 @@ bm25 <- function(dt, k1 = 1.5, b = 0.75) {
 #' @param doc_ids A character vector of document keys to search within.
 #' @param search_term The term to search for.
 #' @return A data.frame with the key and the corresponding snippet, with the search term highlighted.
-get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_post = 40) {
+gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_post = 40) {
     ## Return empty frame if there's nothing to search
     if (length(doc_ids) == 0 || !is.character(doc_ids) || nchar(search_term) == 0) {
         return(data.frame(key = character(), snippet = character()))
@@ -277,7 +277,7 @@ get_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len
 ## example_search_term <- c("vision,unique")
 ## # 3. Call the function to get snippets
 ## # In a real app, 'con' would be your live database connection
-## snippets_df <- get_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 50, len_post = 50)
+## snippets_df <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 50, len_post = 50)
 ## snippets_df
 
 
@@ -360,15 +360,15 @@ server <- function(input, output) {
     observeEvent(input$snippet_search, {
         
         req(input$snippet_search, doc_search_results())
-        doc_keys <- doc_search_results()$key
+        l_doc_keys <- doc_search_results()$key
 
-        if (length(doc_keys) > 0) {
-            snippets <- get_snippets_from_db(con,
-                                             doc_keys,
+        if (length(l_doc_keys) > 0) {
+            dt_snippets <- gd_snippets_from_db(con,
+                                             l_doc_keys,
                                              input$snippet_search,
                                              len_pre = input$len_pre,
                                              len_post = input$len_post)
-            output$snippets_table <- renderTable({snippets})
+            output$snippets_table <- renderTable({dt_snippets})
         }
     })
 }                                                                                            
