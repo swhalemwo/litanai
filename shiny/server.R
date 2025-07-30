@@ -397,30 +397,38 @@ server <- function(input, output) {
                                              len_post = input$len_post)
             # Store the raw snippets
             snippet_results(dt_snippets)
+            # Display the unordered snippets
+            output$snippets_table <- renderTable({ dt_snippets })
         } else {
             snippet_results(data.table()) # Clear if no docs
+            output$snippets_table <- renderTable({ data.table() })
         }
     })
 
-    # A separate observer to handle ordering and rendering of snippets
-    observe({
+    # Observe when the order button is clicked
+    observeEvent(input$order_button, {
         dt_snips <- snippet_results()
         semantic_q <- input$semantic_query
 
-        # If there are no snippets, render an empty table
-        if (nrow(dt_snips) == 0) {
-            output$snippets_table <- renderTable({ data.table() })
-            return()
-        }
-
-        # If there is a semantic query, order the snippets.
-        if (!is.null(semantic_q) && nchar(semantic_q) > 0) {
+        # Only proceed if there are snippets and a query
+        if (nrow(dt_snips) > 0 && !is.null(semantic_q) && nchar(semantic_q) > 0) {
+            # Show a notification that ordering is in progress
+            showNotification("Ordering snippets by semantic similarity...", duration = 3, type = "message")
+            
             dt_ordered <- gd_snippets_ordered(copy(dt_snips), semantic_q, model)
             output$snippets_table <- renderTable({ dt_ordered })
-        } else {
-            # Otherwise, display the snippets as they are (unordered)
-            output$snippets_table <- renderTable({ dt_snips })
         }
+    })
+
+    output$snippet_header <- renderUI({
+        n_snippets <- nrow(snippet_results())
+        
+        if (n_snippets > 0) {
+            title <- sprintf("Snippet Search Results (%d)", n_snippets)
+        } else {
+            title <- "Snippet Search Results"
+        }
+        h4(title)
     })
 }                                                                                            
 

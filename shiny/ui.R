@@ -16,7 +16,14 @@ ui <- fluidPage(
             numericInput("len_post", "Context After (chars):", value = 50, min = 0, max = 500),
             hr(),
             h4("Semantic Ordering"),
-            textInput("semantic_query", "Order by Example:", value = "")
+            fluidRow(
+                column(8, style='padding-right:2px;',
+                    textInput("semantic_query", "Order by Example:", value = "")
+                ),
+                column(4, style='padding-left:2px;',
+                    actionButton("order_button", "Order", style = "margin-top: 25px;")
+                )
+            )
         ),
         
         mainPanel(
@@ -29,7 +36,7 @@ ui <- fluidPage(
                 ),
                 tabPanel(
                     "Snippet Search",
-                    h4("Snippet Search Results"),
+                    uiOutput("snippet_header"),
                     tableOutput("snippets_table")
                 )
             )
