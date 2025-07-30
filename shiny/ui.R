@@ -26,7 +26,9 @@ ui <- fluidPage(
             ),
             hr(),
             h4("Snippet Summary"),
-            tableOutput("snippet_summary_table")
+            div(style = "background-color: white; border: 1px solid #ddd; border-radius: 4px; padding: 5px;",
+                tableOutput("snippet_summary_table")
+            )
         ),
         
         mainPanel(
