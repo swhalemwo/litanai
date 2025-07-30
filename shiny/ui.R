@@ -13,7 +13,10 @@ ui <- fluidPage(
             h4("Snippet Options"),
             textInput("snippet_search", "Snippet Search:", value = ""),
             numericInput("len_pre", "Context Before (chars):", value = 50, min = 0, max = 500),
-            numericInput("len_post", "Context After (chars):", value = 50, min = 0, max = 500)
+            numericInput("len_post", "Context After (chars):", value = 50, min = 0, max = 500),
+            hr(),
+            h4("Semantic Ordering"),
+            textInput("semantic_query", "Order by Example:", value = "")
         ),
         
         mainPanel(

@@ -12,7 +12,7 @@ library(reticulate)
 use_virtualenv("~/litanai", required = TRUE)
 
 
-model <- SentenceTransformer("all-MiniLM-L6-v2")
+
 SentenceTransformer <- import("sentence_transformers")$SentenceTransformer
 model <- SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -270,15 +270,57 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
 
 # 1. Establish connection to your database (replace with your actual connection code)
 
-# 2. Define the inputs based on your example
+## # 2. Define the inputs based on your example
 ## example_doc_id <- c("FilippiMazzola_Wit_2024_neural.pdf", "Bianchi_etal_2024_rem.pdf")
-## example_doc_id <- "Kirk_2017_trove.pdf"
-## example_search_term <- "vision"
-## example_search_term <- c("vision,unique")
-## # 3. Call the function to get snippets
-## # In a real app, 'con' would be your live database connection
-## snippets_df <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 50, len_post = 50)
-## snippets_df
+## ## example_doc_id <- "Kirk_2017_trove.pdf"
+## example_search_term <- "regression"
+## ## example_search_term <- c("vision,unique")
+## ## # 3. Call the function to get snippets
+## ## # In a real app, 'con' would be your live database connection
+## dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 50, len_post = 50)
+## dt_snippets
+
+
+
+#' Order snippets based on semantic similarity to an example query.
+#'
+#' @param dt_snippets A data.table containing a 'snippet' column.
+#' @param example_query A string to compare against.
+#' @param model A sentence-transformer model object.
+#' @return A data.table ordered by similarity, with a new 'similarity' column.
+gd_snippets_ordered <- function(dt_snippets, example_query, model) {
+    # Return original table if query is empty or snippets are empty
+    if (is.null(example_query) || nchar(example_query) == 0 || nrow(dt_snippets) == 0) {
+        return(dt_snippets)
+    }
+
+    # Generate embeddings
+    query_embedding <- model$encode(example_query)
+    snippet_embeddings <- model$encode(dt_snippets$snippet)
+
+    # Helper function for cosine similarity
+    # Calculates cosine similarity between a matrix `a` and a vector `b`
+    cosine_sim <- function(a, b) {
+        as.vector(a %*% b / (sqrt(rowSums(a^2)) * sqrt(sum(b^2))))
+    }
+    
+    similarities <- cosine_sim(snippet_embeddings, query_embedding)
+
+    # Add similarity score to data.table and order
+    dt_snippets[, similarity := similarities]
+    dt_ordered <- dt_snippets[order(-similarity)]
+    
+    # Format the similarity column for better display
+    dt_ordered[, similarity := round(similarity, 3)]
+
+    return(dt_ordered)
+}
+
+## dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 200, len_post = 200)
+## example_query <- "cox regression allows for non-parametric identification of survival predictors"
+## gd_snippets_ordered(dt_snippets, example_query,  model)
+
+
 
 
 
@@ -322,8 +364,8 @@ gd_res <- function(qry_fmt) {
 
 server <- function(input, output) {
     
-    
     doc_search_results <- reactiveVal(data.table())
+    snippet_results <- reactiveVal(data.table())
  
 
     # Display the entered search string
@@ -334,31 +376,16 @@ server <- function(input, output) {
     
     # Observe when input$search changes and perform query
     observeEvent(input$search, {
-        # Print the current input to the console for debugging
-        ## print(str(input))
-        
-        ## # Query to filter the database based on the input string
-        ## # Use stringr::str_detect to perform case-insensitive matching
         print(input$search)
-
         l_searchterms_cbn <- gl_searchterms_cbn(input$search)
         qry_fmt <- gc_qry_fmt(l_searchterms_cbn)
-        
         dt_res <- gd_res(qry_fmt)
-        doc_search_results(dt_res) # Store results
-        ## # Print the SQL query generated (optional, just for debugging)
-
-
-        ## # You can also add results to display in the UI
-        ## output$results_table <- renderTable({
-        ##     dt_res
-        ## output$results_table <- renderTable({mtcars})
+        doc_search_results(dt_res)
         output$results_table <- renderTable({dt_res})
-        
     })
 
+    # Observe when the snippet search term changes
     observeEvent(input$snippet_search, {
-        
         req(input$snippet_search, doc_search_results())
         l_doc_keys <- doc_search_results()$key
 
@@ -368,7 +395,31 @@ server <- function(input, output) {
                                              input$snippet_search,
                                              len_pre = input$len_pre,
                                              len_post = input$len_post)
-            output$snippets_table <- renderTable({dt_snippets})
+            # Store the raw snippets
+            snippet_results(dt_snippets)
+        } else {
+            snippet_results(data.table()) # Clear if no docs
+        }
+    })
+
+    # A separate observer to handle ordering and rendering of snippets
+    observe({
+        dt_snips <- snippet_results()
+        semantic_q <- input$semantic_query
+
+        # If there are no snippets, render an empty table
+        if (nrow(dt_snips) == 0) {
+            output$snippets_table <- renderTable({ data.table() })
+            return()
+        }
+
+        # If there is a semantic query, order the snippets.
+        if (!is.null(semantic_q) && nchar(semantic_q) > 0) {
+            dt_ordered <- gd_snippets_ordered(copy(dt_snips), semantic_q, model)
+            output$snippets_table <- renderTable({ dt_ordered })
+        } else {
+            # Otherwise, display the snippets as they are (unordered)
+            output$snippets_table <- renderTable({ dt_snips })
         }
     })
 }                                                                                            
