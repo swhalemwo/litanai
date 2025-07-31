@@ -1,6 +1,6 @@
 * Literature Analysis using AI
 
-tired of pdfgrep? query and slice your entire pdf collection in seconds
+tired of pdfgrep? index, query and slice your entire pdf collection in seconds
 
 ** Usage
 
@@ -22,7 +22,7 @@ Use Semantic Ordering to order snippets by example sentences
 - ~ollama~  as snippet query engine
 - ~R~, ~Shiny~, ~data.table~, ~RClickhouse~, ~dbplyr~, ~purrr~ for web interface
 
-Installation/setup: (to be streamlined later, it works on my machine, ok?)
+Installation/setup: (to be streamlined later... it works on my machine, i promise...)
 - clone repo
 - set ~DIR_PDF~ in ~globs.py~
 - set main.py shebang to venv with all required libs
