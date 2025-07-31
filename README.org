@@ -1,0 +1,24 @@
+* Literature Analysis using AI
+
+tired of pdfgrep? query and slice your entire pdf collection in seconds
+
+
+
+
+
+Requirements:
+- ~ocrmypdf~, ~mupdf~ for pdf-insertion
+- ~clickhouse~ as storage backend
+- ~ollama~  as snippet query engine
+- ~R~, ~Shiny~, ~data.table~, ~RClickhouse~, ~dbplyr~, ~purrr~ for web interface
+
+Installation/setup: (to be streamlined later)
+- clone repo
+- set 
+
+
+
+
+  
+
+
