@@ -2,19 +2,33 @@
 
 tired of pdfgrep? query and slice your entire pdf collection in seconds
 
+** Usage
+
+Use Document Search to match documents:
+[[file:docs/doc_search.png]]
+
+
+Use Snippet search to extract snippets from matched documents:
+[[file:docs/snippet_search.png]]
+
+Use Semantic Ordering to order snippets by example sentences
+[[file:docs/sentence_order.png]]
 
 
 
-
-Requirements:
+** Requirements:
 - ~ocrmypdf~, ~mupdf~ for pdf-insertion
 - ~clickhouse~ as storage backend
 - ~ollama~  as snippet query engine
 - ~R~, ~Shiny~, ~data.table~, ~RClickhouse~, ~dbplyr~, ~purrr~ for web interface
 
-Installation/setup: (to be streamlined later)
+Installation/setup: (to be streamlined later, it works on my machine, ok?)
 - clone repo
-- set 
+- set ~DIR_PDF~ in ~globs.py~
+- set main.py shebang to venv with all required libs
+- ~chmod +x main.py~
+- ~./main.py rebuild-db~ to populate DB from scratch, ~./main.py update-db~ to update after new pdfs are added
+- ~Rscript shiny/my_app.R~
 
 
 
