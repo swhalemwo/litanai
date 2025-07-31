@@ -388,6 +388,7 @@ server <- function(input, output) {
     observeEvent(input$snippet_search, {
         req(input$snippet_search, doc_search_results())
         l_doc_keys <- doc_search_results()$key
+        con <- check_connection(con)
 
         if (length(l_doc_keys) > 0) {
             dt_snippets <- gd_snippets_from_db(con,
