@@ -5,6 +5,7 @@
 import os
 import subprocess
 from config import DIR_PDF
+from time import sleep
 
 # --- PDF Downloading ---
 
@@ -230,22 +231,40 @@ def get_pdf_text(pdf_path, method="mupdf"):
     try:
         text = EXTRACTION_METHODS[method](pdf_path)
 
+
     except Exception:
         print("somethign wrong")
 
-    # Attempt to repair the PDF first if it's unreadable
-    if not text:
-        try:
-            # Test if the file is readable by PyMuPDF (fitz)
-            fitz.open(pdf_path).close()
-        except Exception:
-            print(f"WARNING: {os.path.basename(pdf_path)} is unreadable. Attempting repair.")
-            if not re_render_pdf_with_ghostscript(pdf_path):
-                print(f"ERROR: Failed to re-render {os.path.basename(pdf_path)}. Skipping.")
-                return ""
+    print(type(text))
+    # print("hi:" + text)
+    # print(len(text))
 
+
+    # Attempt to repair the PDF first if it's unreadable
+    # if not text or text.isspace):
+    #     try:
+    #         # Test if the file is readable by PyMuPDF (fitz)
+    #         print("t1")
+    #         fitz.open(pdf_path).close()
+    #         print("t2")
+    #         sleep(2)
+            
+    #     except Exception:
+    #         print(f"WARNING: {os.path.basename(pdf_path)} is unreadable. Attempting repair.")
+    #         if not re_render_pdf_with_ghostscript(pdf_path):
+    #             print(f"ERROR: Failed to re-render {os.path.basename(pdf_path)}. Skipping.")
+    #             return ""
+    # if not text:
+    #     try:
+    #         text = re_render_pdf_with_ghostscript(pdf_path)
+    #     except:
+    #         print("something wrong with ghostscript")
+
+    # print(type(text))
+            
+            
     # If the text is empty or just whitespace, fall back to OCR
-    if not text or text.isspace():
+    if not text: # or text.isspace():
         print(f"No text found with '{method}'. Falling back to OCR for: {os.path.basename(pdf_path)}")
         # We use extract_text_mupdf to get the text from the OCRed file
         text = extract_text_ocrmypdf(pdf_path)
