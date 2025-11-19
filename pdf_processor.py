@@ -226,18 +226,23 @@ def get_pdf_text(pdf_path, method="mupdf"):
     if method not in EXTRACTION_METHODS:
         raise ValueError(f"Unknown extraction method: {method}")
 
-    # Attempt to repair the PDF first if it's unreadable
-    try:
-        # Test if the file is readable by PyMuPDF (fitz)
-        fitz.open(pdf_path).close()
-    except Exception:
-        print(f"WARNING: {os.path.basename(pdf_path)} is unreadable. Attempting repair.")
-        if not re_render_pdf_with_ghostscript(pdf_path):
-            print(f"ERROR: Failed to re-render {os.path.basename(pdf_path)}. Skipping.")
-            return ""
-
     # First, try the specified primary method
-    text = EXTRACTION_METHODS[method](pdf_path)
+    try:
+        text = EXTRACTION_METHODS[method](pdf_path)
+
+    except Exception:
+        print("somethign wrong")
+
+    # Attempt to repair the PDF first if it's unreadable
+    if not text:
+        try:
+            # Test if the file is readable by PyMuPDF (fitz)
+            fitz.open(pdf_path).close()
+        except Exception:
+            print(f"WARNING: {os.path.basename(pdf_path)} is unreadable. Attempting repair.")
+            if not re_render_pdf_with_ghostscript(pdf_path):
+                print(f"ERROR: Failed to re-render {os.path.basename(pdf_path)}. Skipping.")
+                return ""
 
     # If the text is empty or just whitespace, fall back to OCR
     if not text or text.isspace():
