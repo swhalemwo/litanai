@@ -213,54 +213,40 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
     
     l_search_terms <- gl_searchterms_cbn(search_term) %>% map(~chuck(.x, "split"))
 
-    
-    pattern <- paste0("(?i)(.{0,",len_pre,"})(", l_search_terms[1], ")(.{0,",len_post,"})") # flexible chars
+    # Create a regex pattern to extract snippets containing ANY of the search terms.
+    # We extract a superset here and then filter it down.
+    regex_terms <- paste0(l_search_terms, collapse = "|")
+    pattern <- paste0("(?i)(.{0,", len_pre, "})((?:", regex_terms, "))(.{0,", len_post, "})")
 
-    ## Construct the SQL query using the blog post's method
+    # --- Create the AND clauses for filtering ---
+    # 1. For filtering documents: "text ILIKE '%term1%' AND text ILIKE '%term2%'"
+    doc_filter_clauses <- paste0("text ILIKE '%", l_search_terms, "%'", collapse = " AND ")
+    
+    # 2. For filtering snippets: "snippet ILIKE '%term1%' AND snippet ILIKE '%term2%'"
+    snippet_filter_clauses <- paste0("snippet ILIKE '%", l_search_terms, "%'", collapse = " AND ")
+
+    # Construct the final SQL query
     query <- glue::glue_sql(
-                       "SELECT
-      key,
-      arrayStringConcat(snippet) as snippet
-    FROM (
-      SELECT
-        key,
-        -- Extract all full lines containing the search term (case-insensitive)
-        arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
-      FROM litanai.littext
-      WHERE key IN ({doc_ids*})
-        -- First, efficiently find documents that contain the plain search term
-        -- AND multiSearchAny(text, [{l_search_terms}])
+        "SELECT
+            key,
+            arrayStringConcat(snippet) AS snippet
+        FROM (
+            SELECT
+                key,
+                arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
+            FROM litanai.littext
+            WHERE key IN ({doc_ids*})
+                -- Filter for documents containing ALL search terms
+                AND ({DBI::SQL(doc_filter_clauses)})
+        )
+        -- Expand the array of snippets into individual rows
+        ARRAY JOIN snippets AS snippet
+        -- Filter each snippet to ensure it also contains ALL search terms
+        WHERE ({DBI::SQL(snippet_filter_clauses)})",
+        .con = db_con
     )
-    -- Expand the array of snippets into individual rows
-    ARRAY JOIN snippets AS snippet", 
-    .con = db_con
-    )
-    ## query <- "SELECT
-    ##     key,
-    ##             arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
-    ##   FROM litanai.littext
-    ##   WHERE key IN ({doc_ids*})"
     cat("Executing Snippet Query:\n", query, "\n")
     dt_results <- dbGetQuery(db_con, query) %>% adt %>% .[, snippet := gsub("\n", " ", snippet)]
-    ## results[, snippet]
-    
-    ## filter down results in R if more than one search term
-    ## FIXME: for now now just one term included
-    if (len(l_search_terms) > 1) {
-        dt_results <- dt_results[grepl(l_search_terms[2], snippet, ignore.case = T)]
-    }
-
-    
-    ## Highlight the search term in the snippet using R's gsub
-    ## This is more efficient than doing it in the database
-    ## if (nrow(results) > 0) {
-    ##     results$snippet <- gsub(
-    ##         paste0("(", search_term, ")"),
-    ##         "<b>\\\\1</b>", # Wrap match in bold tags
-    ##         results$snippet,
-    ##         ignore.case = TRUE
-    ##     )
-    ## }
 
     return(dt_results)
 }
@@ -270,15 +256,23 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
 
 # 1. Establish connection to your database (replace with your actual connection code)
 
-## # 2. Define the inputs based on your example
-## example_doc_id <- c("FilippiMazzola_Wit_2024_neural.pdf", "Bianchi_etal_2024_rem.pdf")
-## ## example_doc_id <- "Kirk_2017_trove.pdf"
-## example_search_term <- "regression"
-## ## example_search_term <- c("vision,unique")
-## ## # 3. Call the function to get snippets
-## ## # In a real app, 'con' would be your live database connection
-## dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 50, len_post = 50)
-## dt_snippets
+## 2. Define the inputs based on your example
+example_doc_id <- c("FilippiMazzola_Wit_2024_neural.pdf", "Bianchi_etal_2024_rem.pdf")
+## example_doc_id <- "Kirk_2017_trove.pdf"
+example_search_term <- "regression,likelihood,event"
+## example_search_term <- c("vision,unique")
+## # 3. Call the function to get snippets
+## # In a real app, 'con' would be your live database connection
+
+## here it works for 2 terms
+example_search_term <- "regression,likelihood"
+dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 200, len_post = 200)
+dt_snippets[, snippet]
+
+## but for 3 it doesn't work: relational is in 2 of the previously generated snippets, so they should be there
+example_search_term <- "regression,likelihood, relational"
+dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 200, len_post = 200)
+dt_snippets[, snippet]
 
 
 
