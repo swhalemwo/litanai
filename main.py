@@ -19,7 +19,7 @@ from pdf_processor import get_pdf_text
 from llm import query_openai
 
 
-def test_ocr_pipeline(file_path):
+def test_ocr_pipeline(file_path, ocr_method="ocrmypdf"):
     """
     Runs the full OCR pipeline on a single PDF file and prints the extracted text.
     This is for testing purposes and does not interact with the database.
@@ -31,7 +31,7 @@ def test_ocr_pipeline(file_path):
     print(f"--- Starting OCR test for: {os.path.basename(file_path)} ---")
     # The 'method' argument is less important here since the function will
     # fall back to OCR automatically if the initial method fails.
-    extracted_text = get_pdf_text(file_path, method="mupdf")
+    extracted_text = get_pdf_text(file_path, method="mupdf", ocr_method=ocr_method)
 
     if extracted_text:
         print("\n--- OCR Test Successful ---")
@@ -43,12 +43,11 @@ def test_ocr_pipeline(file_path):
         print("\n--- OCR Test Failed: No text was extracted. ---")
 
 
-def update_littext_db(method="mupdf", limit=None):
+def update_littext_db(method="mupdf", limit=None, ocr_method="ocrmypdf"):
     """Scans for new PDFs and adds them to the littext database."""
     client = get_clickhouse_client()
     if not client:
         return
-
     try:
         existing_keys = get_existing_keys(client)
     except Exception as e:
@@ -72,7 +71,7 @@ def update_littext_db(method="mupdf", limit=None):
     for pdf_file in new_pdf_files:
         file_path = os.path.join(DIR_LIT, pdf_file)
         print(f"Processing: {pdf_file}")
-        text = get_pdf_text(file_path, method)
+        text = get_pdf_text(file_path, method, ocr_method=ocr_method)
         if text:
             data.append({"key": pdf_file, "text": text})
     
@@ -81,7 +80,7 @@ def update_littext_db(method="mupdf", limit=None):
         df = pd.DataFrame(data)
         insert_dataframe(client, "littext", df)
 
-def rebuild_littext_db(method="mupdf", limit=None):
+def rebuild_littext_db(method="mupdf", limit=None, ocr_method="ocrmypdf"):
     """
     Scans the literature directory, extracts text from PDFs, and rebuilds the littext database.
     """
@@ -103,7 +102,7 @@ def rebuild_littext_db(method="mupdf", limit=None):
     data = []
     for pdf_file in pdf_files:
         file_path = os.path.join(DIR_LIT, pdf_file)
-        text = get_pdf_text(file_path, method)
+        text = get_pdf_text(file_path, method, ocr_method=ocr_method)
         if text:
             data.append({"key": pdf_file, "text": text})
     
@@ -122,6 +121,8 @@ def main():
                                 help="The PDF text extraction method to use (e.g., mupdf, pypdf)." )
     parser_rebuild.add_argument("--limit", type=int, default=None, 
                                 help="The maximum number of PDFs to process.")
+    parser_rebuild.add_argument("--ocr-method", type=str, default="ocrmypdf", choices=["ocrmypdf", "tesseract"],
+                                help="The OCR method to use if text extraction fails (default: ocrmypdf).")
 
     # --- Update DB Command ---
     parser_update = subparsers.add_parser("update-db", help="Update the littext database with new PDFs.")
@@ -129,19 +130,23 @@ def main():
                                help="The PDF text extraction method to use.")
     parser_update.add_argument("--limit", type=int, default=None,
                                help="The maximum number of new PDFs to process.")
+    parser_update.add_argument("--ocr-method", type=str, default="ocrmypdf", choices=["ocrmypdf", "tesseract"],
+                               help="The OCR method to use (default: ocrmypdf).")
 
     # --- OCR Test Command ---
     parser_test = subparsers.add_parser("ocr-test", help="Run the OCR pipeline on a single file for testing.")
     parser_test.add_argument("file", type=str, help="The absolute path to the PDF file to test.")
+    parser_test.add_argument("--ocr-method", type=str, default="ocrmypdf", choices=["ocrmypdf", "tesseract"],
+                               help="The OCR method to use for the test (default: ocrmypdf).")
 
     args = parser.parse_args()
 
     if args.command == "rebuild-db":
-        rebuild_littext_db(args.method, args.limit)
+        rebuild_littext_db(args.method, args.limit, args.ocr_method)
     elif args.command == "update-db":
-        update_littext_db(args.method, args.limit)
+        update_littext_db(args.method, args.limit, args.ocr_method)
     elif args.command == "ocr-test":
-        test_ocr_pipeline(args.file)
+        test_ocr_pipeline(args.file, args.ocr_method)
 
 if __name__ == "__main__":
     main()

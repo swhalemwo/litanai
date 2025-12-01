@@ -142,33 +142,74 @@ EXTRACTION_METHODS = {
 
 }
 
-def get_pdf_text(pdf_path, method="mupdf"):
+def get_pdf_text(pdf_path, method="mupdf", ocr_method="ocrmypdf"):
     """Extracts text from a PDF, falling back to OCR if needed."""
     if method not in EXTRACTION_METHODS:
         raise ValueError(f"Unknown extraction method: {method}")
 
     # First, try the specified primary method
-    try:
-        text = EXTRACTION_METHODS[method](pdf_path)
+    text = EXTRACTION_METHODS[method](pdf_path)
 
-
-    except Exception:
-        print("somethign wrong")
-
-    print(type(text))
-    # print("hi:" + text)
-    # print(len(text))
-
-
-
-            
-            
     # If the text is empty or just whitespace, fall back to OCR
-    if not text: # or text.isspace():
-        print(f"No text found with '{method}'. Falling back to Tesseract OCR for: {os.path.basename(pdf_path)}")
-        text = _ocr_via_tesseract(pdf_path)
-
+    if not text or text.isspace():
+        print(f"No text found with '{method}'. Falling back to OCR for: {os.path.basename(pdf_path)}")
+        if ocr_method == "ocrmypdf":
+            text = _ocr_via_ocrmypdf(pdf_path)
+        elif ocr_method == "tesseract":
+            text = _ocr_via_tesseract(pdf_path)
+        else:
+            print(f"ERROR: Unknown OCR method '{ocr_method}'. No OCR performed.")
+            text = ""
     return text
+
+def _ocr_via_ocrmypdf(pdf_path):
+    """
+    Performs OCR on a PDF using ocrmypdf, overwriting the original file.
+    This method is optimized for quality and file size, adding an OCR layer
+    without re-rendering the whole page.
+    """
+    import subprocess
+    import os
+    import shutil
+
+    print(f"INFO: Initiating ocrmypdf OCR pipeline for {os.path.basename(pdf_path)}.")
+    temp_output_path = f"{pdf_path}.__ocrmypdf_temp__.pdf"
+
+    try:
+        # ocrmypdf requires a different output file; it cannot overwrite in place.
+        # By default, it will skip pages that already contain text.
+        command = [
+            'ocrmypdf',
+            '-l', 'eng',        # Set language to English
+            '--quiet',           # Suppress verbose output
+            pdf_path,            # Input file
+            temp_output_path     # Output file
+        ]
+        subprocess.run(
+            command,
+            check=True, capture_output=True, text=True
+        )
+
+        # If successful, move the new file over the original
+        shutil.move(temp_output_path, pdf_path)
+        print(f"SUCCESS: Overwrote original with new OCRed version from ocrmypdf: {os.path.basename(pdf_path)}")
+        
+        # Now extract text from the new file
+        return extract_text_mupdf(pdf_path)
+
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: ocrmypdf failed for {os.path.basename(pdf_path)}: {e.stderr}")
+        return ""
+    except FileNotFoundError:
+        print("ERROR: ocrmypdf is not installed or not in PATH.")
+        return ""
+    except Exception as e:
+        print(f"ERROR: An unexpected error occurred during ocrmypdf processing for {os.path.basename(pdf_path)}: {e}")
+        return ""
+    finally:
+        # Ensure the temp file is removed
+        if os.path.exists(temp_output_path):
+            os.remove(temp_output_path)
 
 def _ocr_via_tesseract(pdf_path):
     """
