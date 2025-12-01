@@ -210,20 +210,14 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
     }
 
     ## The user's search term needs to be escaped for the regex, but not for multiSearchAny
-    
     l_search_terms <- gl_searchterms_cbn(search_term) %>% map(~chuck(.x, "split"))
 
     # Create a regex pattern to extract snippets containing ANY of the search terms.
-    # We extract a superset here and then filter it down.
     regex_terms <- paste0(l_search_terms, collapse = "|")
     pattern <- paste0("(?i)(.{0,", len_pre, "})((?:", regex_terms, "))(.{0,", len_post, "})")
 
-    # --- Create the AND clauses for filtering ---
-    # 1. For filtering documents: "text ILIKE '%term1%' AND text ILIKE '%term2%'"
+    # Create the AND clauses for filtering the documents to ensure they contain ALL terms.
     doc_filter_clauses <- paste0("text ILIKE '%", l_search_terms, "%'", collapse = " AND ")
-    
-    # 2. For filtering snippets: "snippet ILIKE '%term1%' AND snippet ILIKE '%term2%'"
-    snippet_filter_clauses <- paste0("snippet ILIKE '%", l_search_terms, "%'", collapse = " AND ")
 
     # Construct the final SQL query
     query <- glue::glue_sql(
@@ -239,14 +233,25 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
                 -- Filter for documents containing ALL search terms
                 AND ({DBI::SQL(doc_filter_clauses)})
         )
-        -- Expand the array of snippets into individual rows
-        ARRAY JOIN snippets AS snippet
-        -- Filter each snippet to ensure it also contains ALL search terms
-        WHERE ({DBI::SQL(snippet_filter_clauses)})",
+        -- Expand the array of snippets into individual rows.
+        ARRAY JOIN snippets AS snippet",
         .con = db_con
     )
     cat("Executing Snippet Query:\n", query, "\n")
     dt_results <- dbGetQuery(db_con, query) %>% adt %>% .[, snippet := gsub("\n", " ", snippet)]
+
+    # --- Post-filter snippets in R to ensure all terms are present ---
+    # This is the crucial step to enforce the AND logic within each snippet itself.
+    if (nrow(dt_results) > 0 && length(l_search_terms) > 1) {
+        # Create a list of logical vectors, one for each search term
+        l_grepl <- purrr::map(l_search_terms, ~ grepl(.x, dt_results$snippet, ignore.case = TRUE))
+        
+        # Reduce the list with '&' to find rows where all terms are present
+        final_filter <- Reduce(`&`, l_grepl)
+        
+        # Apply the filter
+        dt_results <- dt_results[final_filter]
+    }
 
     return(dt_results)
 }
@@ -270,7 +275,7 @@ dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len
 dt_snippets[, snippet]
 
 ## but for 3 it doesn't work: relational is in 2 of the previously generated snippets, so they should be there
-example_search_term <- "regression,likelihood, relational"
+example_search_term <- "regression,likelihood,relational"
 dt_snippets <- gd_snippets_from_db(con, example_doc_id, example_search_term, len_pre = 200, len_post = 200)
 dt_snippets[, snippet]
 
