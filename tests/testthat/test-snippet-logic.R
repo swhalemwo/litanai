@@ -17,10 +17,11 @@ EXAMPLE_DOC_IDS <- c("FilippiMazzola_Wit_2024_neural.pdf", "Bianchi_etal_2024_re
 context("Snippet Generation Logic: gd_snippets_from_db")
 
 test_that("Snippet search with 2 terms returns results", {
+
     search_term <- "regression,likelihood"
-  
-    ## Execute the function
+      ## Execute the function
     dt_snippets <- gd_snippets_from_db(test_con, EXAMPLE_DOC_IDS, search_term, len_pre = 200, len_post = 200)
+    dt_snippets[, snippet]
   
     ## Add expectations about the output
     ## 1. We expect to get a data.table back
