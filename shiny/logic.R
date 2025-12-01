@@ -97,7 +97,7 @@ gd_res <- function(qry_fmt) {
     dt_res <- con %>% tbl(dbplyr::sql(qry_fmt)) %>% collect() %>% as.data.table()
     dt_bm25 <- dt_res %>% copy %>% bm25 %>% .[order(-bm25), .SD] %>%
         .[, bm25 := as.character(round(bm25, 3))]
-    l_vrbls_tochar <- keep(names(dt_bm25), ~grepl("^cnt_|", .x))
+    l_vrbls_tochar <- keep(names(dt_bm25), ~grepl("^cnt_|textlen", .x))
     dt_bm25[, (l_vrbls_tochar) := map(.SD, as.character), .SDcols = l_vrbls_tochar]
     return(dt_bm25)
 }
@@ -124,10 +124,10 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
     doc_filter_clauses <- paste0("text ILIKE '%", l_search_terms, "%'", collapse = " AND ")
 
     query <- glue::glue_sql(
-                       "SELECT
+        "SELECT
             key,
             arrayStringConcat(snippet) AS snippet
-        FROM ( 
+        FROM (
             SELECT
                 key,
                 arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
@@ -135,10 +135,13 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
             WHERE key IN ({doc_ids*})
                 AND ({DBI::SQL(doc_filter_clauses)})
         )
-        ARRAY JOIN snippets AS snippet",        
+        ARRAY JOIN snippets AS snippet",
         .con = db_con
-    )
-    dt_results <- dbGetQuery(db_con, query) %>% as.data.table() %>% .[, snippet := gsub("\\n", " ", snippet)]
+
+        )
+    print(query)
+    
+    dt_results <- dbGetQuery(db_con, query) %>% as.data.table() %>% .[, snippet := gsub("\n", " ", snippet)]
 
     if (nrow(dt_results) > 0 && length(l_search_terms) > 1) {
         l_grepl <- purrr::map(l_search_terms, ~ grepl(.x, dt_results$snippet, ignore.case = TRUE))
