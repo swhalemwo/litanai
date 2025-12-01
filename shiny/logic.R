@@ -151,6 +151,70 @@ gd_snippets_from_db <- function(db_con, doc_ids, search_term, len_pre = 40, len_
     return(dt_results)
 }
 
+
+
+gd_snippets_from_db_old <- function(db_con, doc_ids, search_term, len_pre = 40, len_post = 40) {
+    ## Return empty frame if there's nothing to search
+    if (length(doc_ids) == 0 || !is.character(doc_ids) || nchar(search_term) == 0) {
+        return(data.frame(key = character(), snippet = character()))
+    }
+
+    ## The user's search term needs to be escaped for the regex, but not for multiSearchAny
+    
+    l_search_terms <- gl_searchterms_cbn(search_term) %>% map(~chuck(.x, "split"))
+
+    
+    pattern <- paste0("(?i)(.{0,",len_pre,"})(", l_search_terms[1], ")(.{0,",len_post,"})") # flexible chars
+
+    ## Construct the SQL query using the blog post's method
+    query <- glue::glue_sql(
+                       "SELECT
+      key,
+      arrayStringConcat(snippet) as snippet
+    FROM (
+      SELECT
+        key,
+        -- Extract all full lines containing the search term (case-insensitive)
+        arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
+      FROM litanai.littext
+      WHERE key IN ({doc_ids*})
+        -- First, efficiently find documents that contain the plain search term
+        -- AND multiSearchAny(text, [{l_search_terms}])
+    )
+    -- Expand the array of snippets into individual rows
+    ARRAY JOIN snippets AS snippet", 
+    .con = db_con
+    )
+    ## query <- "SELECT
+    ##     key,
+    ##             arrayDistinct(extractAllGroupsVertical(text, {pattern})) AS snippets
+    ##   FROM litanai.littext
+    ##   WHERE key IN ({doc_ids*})"
+    cat("Executing Snippet Query:\n", query, "\n")
+    dt_results <- dbGetQuery(db_con, query) %>% adt %>% .[, snippet := gsub("\n", " ", snippet)]
+    ## results[, snippet]
+    
+    ## filter down results in R if more than one search term
+    ## FIXME: for now now just one term included
+    if (len(l_search_terms) > 1) {
+        dt_results <- dt_results[grepl(l_search_terms[2], snippet, ignore.case = T)]
+    }
+
+    
+    ## Highlight the search term in the snippet using R's gsub
+    ## This is more efficient than doing it in the database
+    ## if (nrow(results) > 0) {
+    ##     results$snippet <- gsub(
+    ##         paste0("(", search_term, ")"),
+    ##         "<b>\\\\1</b>", # Wrap match in bold tags
+    ##         results$snippet,
+    ##         ignore.case = TRUE
+    ##     )
+    ## }
+
+    return(dt_results)
+}
+
 # --- Semantic Ordering Logic ---
 #' Orders snippets based on semantic similarity to an example query.
 #' @param dt_snippets A data.table containing a 'snippet' column.
