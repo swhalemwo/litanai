@@ -19,19 +19,19 @@ context("Snippet Generation Logic: gd_snippets_from_db")
 test_that("Snippet search with 2 terms returns results", {
     search_term <- "regression,likelihood"
   
-  # Execute the function
-  dt_snippets <- gd_snippets_from_db(test_con, EXAMPLE_DOC_IDS, search_term, len_pre = 200, len_post = 200)
+    ## Execute the function
+    dt_snippets <- gd_snippets_from_db(test_con, EXAMPLE_DOC_IDS, search_term, len_pre = 200, len_post = 200)
   
-  # Add expectations about the output
-  # 1. We expect to get a data.table back
-  expect_s3_class(dt_snippets, "data.table")
+    ## Add expectations about the output
+    ## 1. We expect to get a data.table back
+    expect_s3_class(dt_snippets, "data.table")
   
-  # 2. We expect to get more than zero snippets
-  expect_gt(nrow(dt_snippets), 0)
+    ## 2. We expect to get more than zero snippets
+    expect_gt(nrow(dt_snippets), 0)
   
-  # 3. We expect every returned snippet to contain both words (case-insensitive)
-  expect_true(all(grepl("regression", dt_snippets$snippet, ignore.case = TRUE)))
-  expect_true(all(grepl("likelihood", dt_snippets$snippet, ignore.case = TRUE)))
+    ## 3. We expect every returned snippet to contain both words (case-insensitive)
+    expect_true(all(grepl("regression", dt_snippets$snippet, ignore.case = TRUE)))
+    expect_true(all(grepl("likelihood", dt_snippets$snippet, ignore.case = TRUE)))
 })
 
 test_that("Snippet search with 3 terms returns results", {
