@@ -88,87 +88,7 @@ def extract_text_pdfminer(pdf_path):
         print(f"Error processing {pdf_path} with pdfminer: {e}")
         return ""
 
-def _ocr_via_screenshot_pipeline(pdf_path, temp_dir):
-    """A robust OCR fallback that screenshots each page and rebuilds the PDF."""
-    import fitz  # PyMuPDF
-    import ocrmypdf
-    import os
 
-    print(f"INFO: OCR failed. Initiating screenshot pipeline for {os.path.basename(pdf_path)}.")
-    image_files = []
-    doc = fitz.open(pdf_path)
-
-    try:
-        # 1. Render each page to a high-res PNG
-        for i, page in enumerate(doc):
-            image_path = os.path.join(temp_dir, f"page_{i:04d}.png")
-            pix = page.get_pixmap(dpi=300)
-            pix.save(image_path)
-            image_files.append(image_path)
-    finally:
-        doc.close()
-
-    if not image_files:
-        print("ERROR: Could not extract any pages as images.")
-        return None, ""
-
-    # 2. Assemble images into a new PDF
-    rebuilt_pdf_path = os.path.join(temp_dir, "rebuilt.pdf")
-    with fitz.open() as rebuilt_doc:
-        for image_file in image_files:
-            with fitz.open(image_file) as img_doc:
-                pdf_bytes = img_doc.convert_to_pdf()
-                with fitz.open("pdf", pdf_bytes) as pdf_doc:
-                    rebuilt_doc.insert_pdf(pdf_doc)
-        rebuilt_doc.save(rebuilt_pdf_path)
-
-    # 3. OCR the new, clean PDF
-    final_ocr_path = os.path.join(temp_dir, "final_ocr.pdf")
-    try:
-        ocrmypdf.ocr(rebuilt_pdf_path, final_ocr_path, force_ocr=True, deskew=False, jbig2_lossy=True,
-                     output_type='pdf')
-        final_text = extract_text_mupdf(final_ocr_path)
-        return final_ocr_path, final_text
-    except Exception as e:
-        print(f"ERROR: Screenshot pipeline failed at the final OCR stage: {e}")
-        return None, ""
-
-def extract_text_ocrmypdf(pdf_path):
-    """
-    Performs OCR on a PDF, with a robust screenshot fallback for difficult files.
-    Overwrites the original file on success.
-    """
-    import ocrmypdf
-    import shutil
-    import os
-    import tempfile
-
-    print(f"INFO: Forcing OCR on: {os.path.basename(pdf_path)}")
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_output_path = os.path.join(temp_dir, "output.pdf")
-        final_text = ""
-        final_pdf_path = None
-
-        try:
-            # --- Attempt 1: Direct OCR ---
-            ocrmypdf.ocr(pdf_path, temp_output_path, force_ocr=True, deskew=True)
-            final_text = extract_text_mupdf(temp_output_path)
-            final_pdf_path = temp_output_path
-
-        except Exception as e:
-            print(f"WARNING: Initial OCR failed: {e}. Falling back to screenshot pipeline.")
-            # --- Attempt 2: Screenshot Pipeline ---
-            final_pdf_path, final_text = _ocr_via_screenshot_pipeline(pdf_path, temp_dir)
-
-        # If any attempt succeeded, overwrite the original file
-        if final_text and final_pdf_path and os.path.exists(final_pdf_path):
-            shutil.copy(final_pdf_path, pdf_path)
-            print(f"SUCCESS: Overwrote original with new OCRed version: {os.path.basename(pdf_path)}")
-            return final_text
-        else:
-            print(f"ERROR: All OCR attempts failed for {pdf_path}.")
-            return ""
 
 
 
@@ -219,7 +139,7 @@ EXTRACTION_METHODS = {
     "pdftotext": extract_text_pdftotext,
     "pdfplumber": extract_text_pdfplumber,
     "pdfminer": extract_text_pdfminer,
-    "ocrmypdf": extract_text_ocrmypdf,
+
 }
 
 def get_pdf_text(pdf_path, method="mupdf"):
@@ -240,33 +160,98 @@ def get_pdf_text(pdf_path, method="mupdf"):
     # print(len(text))
 
 
-    # Attempt to repair the PDF first if it's unreadable
-    # if not text or text.isspace):
-    #     try:
-    #         # Test if the file is readable by PyMuPDF (fitz)
-    #         print("t1")
-    #         fitz.open(pdf_path).close()
-    #         print("t2")
-    #         sleep(2)
-            
-    #     except Exception:
-    #         print(f"WARNING: {os.path.basename(pdf_path)} is unreadable. Attempting repair.")
-    #         if not re_render_pdf_with_ghostscript(pdf_path):
-    #             print(f"ERROR: Failed to re-render {os.path.basename(pdf_path)}. Skipping.")
-    #             return ""
-    # if not text:
-    #     try:
-    #         text = re_render_pdf_with_ghostscript(pdf_path)
-    #     except:
-    #         print("something wrong with ghostscript")
 
-    # print(type(text))
             
             
     # If the text is empty or just whitespace, fall back to OCR
     if not text: # or text.isspace():
-        print(f"No text found with '{method}'. Falling back to OCR for: {os.path.basename(pdf_path)}")
-        # We use extract_text_mupdf to get the text from the OCRed file
-        text = extract_text_ocrmypdf(pdf_path)
+        print(f"No text found with '{method}'. Falling back to Tesseract OCR for: {os.path.basename(pdf_path)}")
+        text = _ocr_via_tesseract(pdf_path)
 
     return text
+
+def _ocr_via_tesseract(pdf_path):
+    """
+    Performs OCR on a PDF using Tesseract, creates a searchable PDF, 
+    and overwrites the original file. This version is aggressively 
+    optimized for smaller file size.
+    """
+    import fitz  # PyMuPDF
+    import subprocess
+    import os
+    import tempfile
+    import shutil
+
+    print(f"INFO: Initiating Tesseract OCR pipeline for {os.path.basename(pdf_path)}.")
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        doc = fitz.open(pdf_path)
+        ocred_page_pdfs = []
+
+        try:
+            # 1. OCR each page and create a single-page PDF for each
+            for i, page in enumerate(doc):
+                image_path = os.path.join(temp_dir, f"page_{i:04d}.jpg")
+                output_base = os.path.join(temp_dir, f"page_{i:04d}")
+                
+                # Render to JPEG at 150 DPI with a specific quality
+                pix = page.get_pixmap(dpi=150)
+                pix.save(image_path, "jpeg", jpg_quality=80)
+
+                try:
+                    # Tesseract outputs a PDF with the text layer
+                    subprocess.run(
+                        ['tesseract', image_path, output_base, '-l', 'eng', 'pdf'],
+                        check=True, capture_output=True, text=True
+                    )
+                    ocred_page_pdfs.append(f"{output_base}.pdf")
+                except subprocess.CalledProcessError as e:
+                    print(f"WARNING: Tesseract OCR failed for page {i+1}: {e.stderr}")
+                except FileNotFoundError:
+                    print("ERROR: Tesseract is not installed or not in PATH.")
+                    return ""
+        finally:
+            doc.close()
+
+        if not ocred_page_pdfs:
+            print("ERROR: No pages were successfully OCRed.")
+            return ""
+
+        # 2. Combine the OCRed pages into a single PDF
+        combined_pdf_path = os.path.join(temp_dir, "combined.pdf")
+        with fitz.open() as final_doc:
+            for pdf_page_path in ocred_page_pdfs:
+                with fitz.open(pdf_page_path) as page_doc:
+                    final_doc.insert_pdf(page_doc)
+            final_doc.save(combined_pdf_path)
+
+        # 3. Post-process with Ghostscript for final size reduction
+        final_pdf_path = os.path.join(temp_dir, "final_ocr.pdf")
+        try:
+            subprocess.run(
+                [
+                    'gs',
+                    '-sDEVICE=pdfwrite',
+                    '-dCompatibilityLevel=1.4',
+                    '-dPDFSETTINGS=/ebook',
+                    '-dNOPAUSE',
+                    '-dQUIET',
+                    '-dBATCH',
+                    f'-sOutputFile={final_pdf_path}',
+                    combined_pdf_path
+                ],
+                check=True, capture_output=True, text=True
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            print(f"WARNING: Ghostscript optimization failed: {e}. Using unoptimized PDF.")
+            shutil.copy(combined_pdf_path, final_pdf_path)
+
+
+        # 4. Overwrite the original file and return the text
+        if os.path.exists(final_pdf_path):
+            shutil.copy(final_pdf_path, pdf_path)
+            print(f"SUCCESS: Overwrote original with new OCRed version: {os.path.basename(pdf_path)}")
+            return extract_text_mupdf(pdf_path)
+        else:
+            print("ERROR: Final OCRed PDF was not created.")
+            return ""
