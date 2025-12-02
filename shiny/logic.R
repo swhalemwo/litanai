@@ -1,28 +1,31 @@
 # This file contains the core data processing and business logic for the Shiny app.
 # It is sourced by server.R and can be sourced by test files.
 
-library(data.table)
-library(RClickhouse)
-library(dbplyr)
-library(purrr)
-library(DBI)
 
 # --- Database Connection ---
 #' Checks if the database connection is valid and reconnects if necessary.
 #' @param con A DBI database connection object.
 #' @return A valid DBI database connection object.
 check_connection <- function(con) {
-  if (!dbIsValid(con)) {
-    con <- DBI::dbConnect(RClickhouse::clickhouse(), dbname = "litanai")
-  }
-  tryCatch({
-    dbGetQuery(con, "SELECT 1")
-    return(con)
-  }, error = function(e) {
-    cat("Reconnecting due to error: ", e$message, "\n")
-    con <- DBI::dbConnect(RClickhouse::clickhouse(), dbname = "litanai")
-    return(con)
-  })
+    
+    ## If the connection is not valid, reconnect
+    
+    ## print('check_connection')
+    ## print(con)
+    
+    
+    if (!dbIsValid(con)) {
+        con <- DBI::dbConnect(RClickhouse::clickhouse(), dbname = "litanai")
+    }
+    tryCatch({
+        dbGetQuery(con, "SELECT 1")
+        return(con)
+    }, error = function(e) {
+        cat("Reconnecting due to error: ", e$message, "\n")
+        con <- DBI::dbConnect(RClickhouse::clickhouse(), dbname = "litanai")
+        ## print('check_connection done')
+        return(con)
+    })
 }
 
 # --- Search Term Parsing ---

@@ -2,9 +2,18 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 library(data.table)
+library(RClickhouse)
+library(dbplyr)
+library(purrr)
 
-# Source the business logic from the separate file
-source("logic.R")
+
+
+
+## Source the business logic from the separate file
+
+DIR_CODE <- "~/Dropbox/proj/litanai/shiny/"
+
+source(paste0(DIR_CODE, "logic.R"))
 
 # At the top of your server.R or in global.R
 library(reticulate)
@@ -18,6 +27,8 @@ model <- SentenceTransformer("all-MiniLM-L6-v2")
 # basis within the server function is a more robust pattern.
 library(DBI)
 con <- DBI::dbConnect(RClickhouse::clickhouse(), dbname = "litanai")
+
+## print(con)
 
 
 # --- Shiny Server Function ---
@@ -39,7 +50,7 @@ server <- function(input, output) {
         l_searchterms_cbn <- gl_searchterms_cbn(input$search)
         qry_fmt <- gc_qry_fmt(l_searchterms_cbn)
         # Re-establish connection if it's not valid
-        con <<- check_connection(con)
+        con <- check_connection(con)
         dt_res <- gd_res(qry_fmt)
         doc_search_results(dt_res)
         output$results_table <- renderTable({dt_res})
@@ -50,7 +61,7 @@ server <- function(input, output) {
         req(input$snippet_search, doc_search_results())
         l_doc_keys <- doc_search_results()$key
         # Re-establish connection if it's not valid
-        con <<- check_connection(con)
+        con <- check_connection(con)
 
         if (length(l_doc_keys) > 0) {
             dt_snippets <- gd_snippets_from_db(con,
